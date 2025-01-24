@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "neoshell"
+version = "0.1.0"
+description = "A CLI tool for developers"
+authors = ["Narendrakumar-Suresh <narendrkumarsuresh@gmail.com>"] 
+license = "MIT"
+readme = "README.md"
+
+# Specify the directory where the Python package is located
+packages = [{ include = "shell" }]  # or change it to { include = "neoshell.shell" }
+
+[tool.poetry.dependencies]
+python = "^3.12"
+typer = "^0.7.0"  # Add Typer version here, or check for the latest version on PyPI
+art = "^6.4"
+termcolor = "^2.5.0"
+
+
+[tool.poetry.scripts]
+neoshell = "shell.main:main"  # Entry point for your CLI app
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
