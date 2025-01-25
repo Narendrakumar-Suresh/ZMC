@@ -1,5 +1,5 @@
 
-# ZMC - 
+# ZMC - Zen Mode CLI
 
 > **Note**: ZMC is still in active development. Some features may be missing, and there may be bugs. Please feel free to contribute and provide feedback!
 
