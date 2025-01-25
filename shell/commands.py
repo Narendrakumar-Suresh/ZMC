@@ -18,7 +18,7 @@ def clear_screen():
 def yell(command):
     if command.startswith("yell"):
         text = command[len("yell "):].strip()
-        print(text)
+        print(Fore.LIGHTMAGENTA_EX+text)
 
 def chng_dir(command):
     if command.startswith("chdir"):
