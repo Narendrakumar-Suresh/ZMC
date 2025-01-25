@@ -1,12 +1,13 @@
 import os
 import commands
 import file_commands as fc
-from colorama import Fore, Style
+from colorama import Fore
 from art import *
 from termcolor import colored
+import subprocess
 
-text_art = text2art('Welcome to Neoshell')
-colored_art = colored(text_art, 'green')
+text_art = text2art('Welcome to ZMC')
+colored_art = colored(text_art,'cyan')
 print(colored_art)
 def main():
     hist=[]
@@ -34,7 +35,13 @@ def main():
         elif command.startswith("del"):
             fc.delete(command)
         else:
-            print(Fore.RED + "Invalid command")
+            try:
+                subprocess.run(command, shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                print(Fore.RED + f"Error: {e}")
+            except FileNotFoundError:
+                print(Fore.RED + "Command not found")
+
         hist.append(command)
 
 if __name__ == "__main__":
