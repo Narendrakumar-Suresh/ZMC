@@ -34,6 +34,10 @@ def main():
             fc.create(command)
         elif command.startswith("del"):
             fc.delete(command)
+        elif command.startswith('mkdir'):
+            fc.makedir(command)
+        elif command.startswith('rmdir'):
+            fc.delete_dir(command)
         else:
             try:
                 subprocess.run(command, shell=True, check=True)
