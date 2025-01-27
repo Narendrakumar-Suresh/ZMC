@@ -1,4 +1,7 @@
 from colorama import Fore, Style
+"""
+This block is handling directory based methods.
+"""
 import os
 
 # create file
@@ -23,6 +26,9 @@ def delete(cmd):
     except Exception as e:
         print(Fore.RED+f'Cannot create file {e}')
 
+'''
+This has commands related to directories
+'''
 #creates a directory
 def makedir(cmd):
     dir_name=cmd[5:].strip()
@@ -44,3 +50,13 @@ def delete_dir(cmd):
         print(Fore.RED +f'{dir_name} not found!')
     except Exception as e:
         print(Fore.RED+f'Cannot create file {e}')
+
+# renames directory
+def rename_dir(cmd):
+    old_name=cmd.split()[1]
+    new_name=cmd.split()[2]
+    try:
+        os.rename(old_name,new_name)
+        print(Fore.GREEN +f'Successfully renamed {old_name} -> {new_name}')
+    except Exception as e:
+        print(Fore.RED+f'(┬┬﹏┬┬)\nSomething is wrong.\n{e}')
