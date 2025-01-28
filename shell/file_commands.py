@@ -1,9 +1,9 @@
 from colorama import Fore, Style
-"""
-This block is handling directory based methods.
-"""
 import os
 
+'''
+This has commands related to files
+'''
 # create file
 def create(cmd):
     file_name=cmd[7:].strip()
@@ -52,7 +52,7 @@ def delete_dir(cmd):
         print(Fore.RED+f'Cannot create file {e}')
 
 # renames directory
-def rename_dir(cmd):
+def rename(cmd):
     old_name=cmd.split()[1]
     new_name=cmd.split()[2]
     try:
@@ -60,3 +60,28 @@ def rename_dir(cmd):
         print(Fore.GREEN +f'Successfully renamed {old_name} -> {new_name}')
     except Exception as e:
         print(Fore.RED+f'(┬┬﹏┬┬)\nSomething is wrong.\n{e}')
+
+# search files and directories
+def search(cmd):
+    search_term = cmd[7:].strip()
+    if not search_term:
+        print(Fore.RED + "Please provide a search term!")
+        return
+
+    results = []
+    try:
+        # Traverse the current directory and subdirectories
+        for root, dirs, files in os.walk("."):
+            for name in dirs + files:
+                if search_term.lower() in name.lower():  # Case-insensitive search
+                    results.append(os.path.join(root, name))
+        
+        if results:
+            print(Fore.GREEN + f"Found {len(results)} result(s):")
+            for result in results:
+                print(Fore.CYAN + result)
+        else:
+            print(Fore.YELLOW + "No matching files or directories found.")
+    except Exception as e:
+        print(Fore.RED + f"An error occurred while searching: {e}")
+

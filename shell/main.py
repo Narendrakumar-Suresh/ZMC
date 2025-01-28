@@ -37,16 +37,17 @@ def main():
         elif command.startswith('mkdir'):
             fc.makedir(command)
         elif command.startswith('rndir'):
-            fc.rename_dir(command)
-        elif command.startswith('rmdir'):
+            fc.rename(command)
+        elif command.startswith('rename'):
             fc.delete_dir(command)
+        elif command.startswith('search'):
+            fc.search(command)
         else:
             try:
                 subprocess.run(command, shell=True, check=True)
             except subprocess.CalledProcessError as e:
-                print(Fore.RED + f"Error: {e}")
-            except FileNotFoundError:
-                print(Fore.RED + "Command not found")
+                print(Fore.RED + "(┬┬﹏┬┬) Command not found")
+                
 
         hist.append(command)
 
