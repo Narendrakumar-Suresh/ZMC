@@ -11,7 +11,7 @@ def find_executable(command, path_dirs):
     return None
 
 def main():
-    builtin=['echo','exit','type','pwd']
+    builtin=['echo','exit','type','pwd','cd']
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     while True:    
@@ -41,6 +41,10 @@ def main():
                     sys.stdout.write(f"{args}: not found\n")
             case 'pwd':
                 sys.stdout.write(os.getcwd()+'\n')
+            case 'cd':
+                if ''.join(args)=='~':
+                    os.path.expanduser('~')
+                os.chdir(''.join(args))
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
