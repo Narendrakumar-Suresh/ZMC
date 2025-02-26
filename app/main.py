@@ -10,8 +10,8 @@ def main():
         match command:
             case "exit":
                 break
-            case "echo":
-                args = command.split()[1:]
+            case command.startswith("echo"):
+                args = command.split()[5:]
                 print(" ".join(args))
             case _ :
                 sys.stdout.write(f"{command}: command not found\n")
