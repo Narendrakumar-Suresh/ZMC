@@ -48,7 +48,7 @@ def main():
                 path=os.chdir(''.join(args))
 
                 if not path:
-                    sys.stdout.write(f"cd: {args}: No such file or directory")
+                    sys.stdout.write(f"cd: {args}: No such file or directory\n")
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
