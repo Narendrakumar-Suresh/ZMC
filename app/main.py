@@ -41,8 +41,8 @@ def main():
                     sys.stdout.write(f"{args}: not found\n")
 
             case _:
-                executable_path = find_executable(cmd, path_dirs)
-
+                executable_path = find_executable(cmd, path_dirs).split('/')
+                executable_path=''.join(executable_path[::-1])
                 if executable_path:
                     subprocess.run([executable_path] + args,env=os.environ, check=False)
                 else:
