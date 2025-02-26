@@ -41,9 +41,11 @@ def main():
                     sys.stdout.write(f"{args}: not found\n")
 
             case _:
-                executable_path = find_executable(cmd, path_dirs).split('/')
-                executable_path=''.join(executable_path[-1])
+                executable_path = find_executable(cmd, path_dirs)
+                
                 if executable_path:
+                    executable_path=executable_path.split('/')
+                    executable_path=''.join(executable_path[-1])
                     subprocess.run([executable_path] + args,env=os.environ, check=False)
                 else:
                     sys.stdout.write(f"{cmd}: command not found\n")
