@@ -42,9 +42,13 @@ def main():
             case 'pwd':
                 sys.stdout.write(os.getcwd()+'\n')
             case 'cd':
-                if ''.join(args)=='~':
-                    os.path.expanduser('~')
-                os.chdir(''.join(args))
+                args=''.join(args)
+                if args.strip()=='~':
+                    path=os.path.expanduser('~')
+                path=os.chdir(''.join(args))
+
+                if not path:
+                    sys.stdout.write(f"cd: {args}: No such file or directory")
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
