@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import shlex
 
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
@@ -17,15 +18,20 @@ def main():
     while True:    
         sys.stdout.write("$ ")
         # Wait for user input
-        command=input().split()
-        cmd = command[0]
-        args = command[1:]
+        command=input()
+        var=command.split()
+        cmd = var[0]
+        args = var[1:]
         # print(f'This is the command: {cmd}')
         match cmd:
             case "exit":
                 break
+
             case "echo":
-                print(" ".join(args))
+                ans = shlex.split(command, posix=True) 
+                ans="".join(ans[1])
+                sys.stdout.write(ans+'\n')
+
             case 'type':
                 if not args:
                     continue
@@ -39,13 +45,15 @@ def main():
                     sys.stdout.write(f"{args} is {executable_path}\n")
                 else:
                     sys.stdout.write(f"{args}: not found\n")
+
             case 'pwd':
                 sys.stdout.write(os.getcwd()+'\n')
+
             case 'cd':
                 if not args or "".join(args)=='~':
-                    path = os.path.expanduser('~')  # Default to home directory if no argument
+                    path = os.path.expanduser('~')
                 else:
-                    path = args[0]  # Use the first argument as the target directory
+                    path = args[0]
 
                 try:
                     os.chdir(path)
@@ -56,7 +64,6 @@ def main():
                 except PermissionError:
                     sys.stdout.write(f"cd: {path}: Permission denied\n")
 
-                    
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
