@@ -31,11 +31,11 @@ def main():
                 args="".join(args)
                 executable_path = find_executable(args, path_dirs)
                 if args in builtin:
-                    sys.stdout.write(f'{args} is a shell builtin')
+                    sys.stdout.write(f"{args} is a shell builtin\n")
                 elif executable_path:
-                    sys.stdout.write(f"{args} is {executable_path}")
+                    sys.stdout.write(f"{args} is {executable_path}\n")
                 else:
-                    sys.stdout.write(f"{args}: not found")
+                    sys.stdout.write(f"{args}: not found\n")
 
             case _:
                 sys.stdout.write(f"{cmd}: command not found\n")
