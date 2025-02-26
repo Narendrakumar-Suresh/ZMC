@@ -6,9 +6,11 @@ def main():
 
         # Wait for user input
         command=input()
-        li=command.split()
+        
         if command == "exit 0":
             sys.exit(0)
+        if command.startswith('echo'):
+            print(command[5:].strip())
         print(f"{command}: command not found")
 
 
