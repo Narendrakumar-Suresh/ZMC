@@ -12,7 +12,7 @@ def main():
         if cmd == "exit":
             sys.exit(0)
         elif cmd=='echo':
-            print(args)
+            sys.stdout.write(args)
         else:
             sys.stdout.write(f"{command}: command not found")
 
