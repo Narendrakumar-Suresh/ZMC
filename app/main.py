@@ -19,7 +19,7 @@ def main():
                 if args in builtin:
                     print(f"{args} is a shell builtin")
                 else:
-                    sys.stdout.write(f'"{args}: not found\n"')
+                    sys.stdout.write(f"{args}: not found\n")
             case _:
                 sys.stdout.write(f"{cmd}: command not found\n")
 
