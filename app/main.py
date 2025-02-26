@@ -29,8 +29,7 @@ def main():
 
             case "echo":
                 ans = shlex.split(command, posix=True) 
-                ans="".join(ans[1])
-                sys.stdout.write(ans+'\n')
+                sys.stdout.write(" ".join(ans[1:]) + '\n')
 
             case 'type':
                 if not args:
