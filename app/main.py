@@ -29,7 +29,9 @@ def main():
                 if not args:
                     continue
                 args="".join(args)
+
                 executable_path = find_executable(args, path_dirs)
+
                 if args in builtin:
                     sys.stdout.write(f"{args} is a shell builtin\n")
                 elif executable_path:
@@ -39,6 +41,7 @@ def main():
 
             case _:
                 executable_path = find_executable(cmd, path_dirs)
+                
                 if executable_path:
                     os.execv(executable_path, [cmd] + args)
                 else:
