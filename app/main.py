@@ -6,15 +6,15 @@ def main():
 
         # Wait for user input
         command=input()
-
-        match command:
-            case "exit":
-                break
-            case command.startswith("echo"):
-                args = command.split()[5:]
-                print(" ".join(args))
-            case _ :
-                sys.stdout.write(f"{command}: command not found\n")
+        cmd = command[0]
+        args = command[1:]
+        
+        if cmd == "exit":
+            sys.exit(0)
+        elif cmd=='echo':
+            print(args)
+        else:
+            sys.stdout.write(f"{command}: command not found")
 
 
 if __name__ == "__main__":
