@@ -44,7 +44,7 @@ def main():
                 executable_path = find_executable(cmd, path_dirs)
 
                 if executable_path:
-                    subprocess.run(executable_path, [cmd] + args)
+                    subprocess.run([executable_path] + args, check=True)
                 else:
                     sys.stdout.write(f"{cmd}: command not found\n")
 
