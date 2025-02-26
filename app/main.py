@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
@@ -41,11 +42,11 @@ def main():
 
             case _:
                 executable_path = find_executable(cmd, path_dirs)
-                
+
                 if executable_path:
-                    os.execv(executable_path, [cmd] + args)
+                    subprocess.run(executable_path, [cmd] + args)
                 else:
-                    sys.stdout.write(f"{cmd}: command not found")
+                    sys.stdout.write(f"{cmd}: command not found\n")
 
 
 if __name__ == "__main__":
