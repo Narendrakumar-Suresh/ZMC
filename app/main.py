@@ -38,7 +38,10 @@ def main():
                     sys.stdout.write(f"{args}: not found\n")
 
             case _:
-                sys.stdout.write(f"{cmd}: command not found\n")
+                if os.path.isfile(cmd):
+                    os.system(cmd)
+                else:
+                    sys.stdout.write(f"{cmd}: command not found\n")
 
 
 if __name__ == "__main__":
