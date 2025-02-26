@@ -38,10 +38,11 @@ def main():
                     sys.stdout.write(f"{args}: not found\n")
 
             case _:
-                if os.path.isfile(cmd):
-                    os.system(cmd)
+                executable_path = find_executable(cmd, path_dirs)
+                if executable_path:
+                    os.execv(executable_path, [cmd] + args)
                 else:
-                    sys.stdout.write(f"{cmd}: command not found\n")
+                    sys.stdout.write(f"{cmd}: command not found")
 
 
 if __name__ == "__main__":
