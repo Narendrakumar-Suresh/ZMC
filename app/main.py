@@ -19,7 +19,7 @@ def main():
         sys.stdout.write("$ ")
         # Wait for user input
         command=input()
-        var=command.split()
+        var=shlex.split(command, posix=True)
         cmd = var[0]
         args = var[1:]
         # print(f'This is the command: {cmd}')
@@ -28,8 +28,9 @@ def main():
                 break
 
             case "echo":
-                ans = shlex.split(command, posix=True) 
-                sys.stdout.write(" ".join(ans[1:]) + '\n')
+                # ans = shlex.split(command, posix=True) 
+                # " ".join(ans[1:])
+                sys.stdout.write(args + '\n')
 
             case 'type':
                 if not args:
