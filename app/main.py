@@ -40,7 +40,7 @@ def main():
                 else:
                     sys.stdout.write(f"{args}: not found\n")
             case 'pwd':
-                sys.stdout.write(os.getcwd(),end='\n')
+                sys.stdout.write(os.getcwd()+'\n')
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
