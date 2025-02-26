@@ -42,13 +42,19 @@ def main():
             case 'pwd':
                 sys.stdout.write(os.getcwd()+'\n')
             case 'cd':
-                args=''.join(args)
-                if args.strip()=='~':
-                    path=os.path.expanduser('~')
-                path=os.chdir(''.join(args))
-
-                if not path:
-                    sys.stdout.write(f"cd: {args}: No such file or directory\n")
+                if not args:
+                    path = os.path.expanduser('~')  # Default to home directory if no argument
+                else:
+                    path = args[0]  # Use the first argument as the target directory
+            
+                try:
+                    os.chdir(path)
+                except FileNotFoundError:
+                    sys.stdout.write(f"cd: {path}: No such file or directory\n")
+                except NotADirectoryError:
+                    sys.stdout.write(f"cd: {path}: Not a directory\n")
+                except PermissionError:
+                    sys.stdout.write(f"cd: {path}: Permission denied\n")
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
