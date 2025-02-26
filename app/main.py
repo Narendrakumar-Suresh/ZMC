@@ -42,7 +42,7 @@ def main():
 
             case _:
                 executable_path = find_executable(cmd, path_dirs).split('/')
-                executable_path=''.join(executable_path[::-1])
+                executable_path=''.join(executable_path[-1])
                 if executable_path:
                     subprocess.run([executable_path] + args,env=os.environ, check=False)
                 else:
