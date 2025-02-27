@@ -11,49 +11,77 @@ def find_executable(command, path_dirs):
             return full_path
     return None
 
+def execute_command(command):
+    """Execute a command with optional output redirection."""
+    parts = shlex.split(command, posix=True)
+    if '>' in parts or '1>' in parts:
+        if '>' in parts:
+            op_index = parts.index('>')
+        else:
+            op_index = parts.index('1>')
+        
+        cmd_parts = parts[:op_index]
+        file_name = parts[op_index + 1] if op_index + 1 < len(parts) else None
+        
+        if not file_name:
+            sys.stdout.write("Error: No output file specified\n")
+            return
+        
+        try:
+            with open(file_name, 'w', encoding='utf-8') as output_file:
+                subprocess.run(cmd_parts, env=os.environ, stdout=output_file, stderr=sys.stderr, check=False)
+        except (OSError, IOError) as e:
+            sys.stdout.write(f"Error: {e}\n")
+    else:
+        subprocess.run(parts, env=os.environ, check=False)
+
 def main():
-    builtin=['echo','exit','type','pwd','cd']
+    builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
-    while True:    
+    
+    while True:
         sys.stdout.write("$ ")
-        # Wait for user input
-        command=input()
-        var=shlex.split(command, posix=True)
+        sys.stdout.flush()
+        command = input().strip()
+        
+        if not command:
+            continue
+        
+        var = shlex.split(command, posix=True)
         cmd = var[0]
         args = var[1:]
-        # print(f'This is the command: {cmd}')
+        
         match cmd:
             case "exit":
                 break
-
+            
             case "echo":
-                ans = shlex.split(command, posix=True) 
-                sys.stdout.write(" ".join(ans[1:]) + '\n')
-
+                sys.stdout.write(" ".join(args) + '\n')
+            
             case 'type':
                 if not args:
                     continue
-                args="".join(args)
-
+                
+                args = "".join(args)
                 executable_path = find_executable(args, path_dirs)
-
+                
                 if args in builtin:
                     sys.stdout.write(f"{args} is a shell builtin\n")
                 elif executable_path:
                     sys.stdout.write(f"{args} is {executable_path}\n")
                 else:
                     sys.stdout.write(f"{args}: not found\n")
-
+            
             case 'pwd':
-                sys.stdout.write(os.getcwd()+'\n')
-
+                sys.stdout.write(os.getcwd() + '\n')
+            
             case 'cd':
-                if not args or "".join(args)=='~':
+                if not args or "".join(args) == '~':
                     path = os.path.expanduser('~')
                 else:
                     path = args[0]
-
+                
                 try:
                     os.chdir(path)
                 except FileNotFoundError:
@@ -62,17 +90,14 @@ def main():
                     sys.stdout.write(f"cd: {path}: Not a directory\n")
                 except PermissionError:
                     sys.stdout.write(f"cd: {path}: Permission denied\n")
-
+            
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 
                 if executable_path:
-                    executable_path=executable_path.split('/')
-                    executable_path=''.join(executable_path[-1])
-                    subprocess.run([executable_path] + args,env=os.environ, check=False)
+                    execute_command(command)
                 else:
                     sys.stdout.write(f"{cmd}: command not found\n")
-
 
 if __name__ == "__main__":
     main()
