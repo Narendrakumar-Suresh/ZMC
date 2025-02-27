@@ -83,7 +83,7 @@ def main():
         try:
             sys.stdout.write("$ ")
             sys.stdout.flush()
-            command = input()
+            command = input().strip()
         except EOFError:
             break
         
