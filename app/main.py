@@ -16,8 +16,10 @@ def execute_command(command):
     parts = shlex.split(command, posix=True)
     stdout_target = None
     stderr_target = None
+    stdout_append = False
+    stderr_append = False
     
-    if '>' in parts or '1>' in parts or '2>' in parts:
+    if '>' in parts or '1>' in parts or '2>' in parts or '>>' in parts or '1>>' in parts or '2>>' in parts:
         cmd_parts = []
         i = 0
         while i < len(parts):
@@ -27,6 +29,14 @@ def execute_command(command):
             elif parts[i] == '2>' and i + 1 < len(parts):
                 stderr_target = parts[i + 1]
                 i += 2
+            elif parts[i] in {'>>', '1>>'} and i + 1 < len(parts):
+                stdout_target = parts[i + 1]
+                stdout_append = True
+                i += 2
+            elif parts[i] == '2>>' and i + 1 < len(parts):
+                stderr_target = parts[i + 1]
+                stderr_append = True
+                i += 2
             else:
                 cmd_parts.append(parts[i])
                 i += 1
@@ -35,8 +45,10 @@ def execute_command(command):
             sys.stdout.write("Error: No command specified\n")
             return
         
-        stdout_file = open(stdout_target, 'w') if stdout_target else None
-        stderr_file = open(stderr_target, 'w') if stderr_target else None
+        stdout_mode = 'a' if stdout_append else 'w'
+        stderr_mode = 'a' if stderr_append else 'w'
+        stdout_file = open(stdout_target, stdout_mode) if stdout_target else None
+        stderr_file = open(stderr_target, stderr_mode) if stderr_target else None
         
         try:
             subprocess.run(cmd_parts, env=os.environ, stdout=stdout_file or sys.stdout, stderr=stderr_file or sys.stderr, check=False)
@@ -67,7 +79,7 @@ def main():
         cmd = var[0]
         args = var[1:]
         
-        if '>' in args or '1>' in args or '2>' in args:
+        if '>' in args or '1>' in args or '2>' in args or '>>' in args or '1>>' in args or '2>>' in args:
             execute_command(command)
             continue
         
@@ -76,7 +88,7 @@ def main():
                 break
             
             case "echo":
-                if '>' in args or '1>' in args or '2>' in args:
+                if '>' in args or '1>' in args or '2>' in args or '>>' in args or '1>>' in args or '2>>' in args:
                     execute_command(command)
                 else:
                     sys.stdout.write(" ".join(args) + '\n')
