@@ -16,7 +16,7 @@ def completer(text, state):
     """Autocomplete function for shell commands and filenames."""
     options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text)]
     if state < len(options):
-        return options[state]
+        return options[state] + ' ' if len(options) == 1 else options[state]
     return None
 
 def execute_command(command):
