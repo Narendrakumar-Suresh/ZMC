@@ -12,27 +12,41 @@ def find_executable(command, path_dirs):
     return None
 
 def execute_command(command):
-    """Execute a command with optional output redirection."""
+    """Execute a command with optional output and error redirection."""
     parts = shlex.split(command, posix=True)
-    if '>' in parts or '1>' in parts:
-        # Identify redirection operator and split command
-        if '>' in parts:
-            op_index = parts.index('>')
-        else:
-            op_index = parts.index('1>')
+    stdout_target = None
+    stderr_target = None
+    
+    if '>' in parts or '1>' in parts or '2>' in parts:
+        cmd_parts = []
+        i = 0
+        while i < len(parts):
+            if parts[i] in {'>', '1>'} and i + 1 < len(parts):
+                stdout_target = parts[i + 1]
+                i += 2
+            elif parts[i] == '2>' and i + 1 < len(parts):
+                stderr_target = parts[i + 1]
+                i += 2
+            else:
+                cmd_parts.append(parts[i])
+                i += 1
         
-        cmd_parts = parts[:op_index]  # Command and arguments
-        file_name = parts[op_index + 1] if op_index + 1 < len(parts) else None
-        
-        if not file_name:
-            sys.stdout.write("Error: No output file specified\n")
+        if not cmd_parts:
+            sys.stdout.write("Error: No command specified\n")
             return
         
+        stdout_file = open(stdout_target, 'w') if stdout_target else None
+        stderr_file = open(stderr_target, 'w') if stderr_target else None
+        
         try:
-            with open(file_name, 'w') as output_file:
-                subprocess.run(cmd_parts, env=os.environ, stdout=output_file, stderr=sys.stderr, check=False)
+            subprocess.run(cmd_parts, env=os.environ, stdout=stdout_file or sys.stdout, stderr=stderr_file or sys.stderr, check=False)
         except Exception as e:
             sys.stdout.write(f"Error: {e}\n")
+        finally:
+            if stdout_file:
+                stdout_file.close()
+            if stderr_file:
+                stderr_file.close()
     else:
         subprocess.run(parts, env=os.environ, check=False)
 
@@ -53,7 +67,7 @@ def main():
         cmd = var[0]
         args = var[1:]
         
-        if '>' in args or '1>' in args:
+        if '>' in args or '1>' in args or '2>' in args:
             execute_command(command)
             continue
         
@@ -62,7 +76,7 @@ def main():
                 break
             
             case "echo":
-                if '>' in args or '1>' in args:
+                if '>' in args or '1>' in args or '2>' in args:
                     execute_command(command)
                 else:
                     sys.stdout.write(" ".join(args) + '\n')
