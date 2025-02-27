@@ -15,12 +15,13 @@ def execute_command(command):
     """Execute a command with optional output redirection."""
     parts = shlex.split(command, posix=True)
     if '>' in parts or '1>' in parts:
+        # Identify redirection operator and split command
         if '>' in parts:
             op_index = parts.index('>')
         else:
             op_index = parts.index('1>')
         
-        cmd_parts = parts[:op_index]
+        cmd_parts = parts[:op_index]  # Command and arguments
         file_name = parts[op_index + 1] if op_index + 1 < len(parts) else None
         
         if not file_name:
@@ -28,9 +29,9 @@ def execute_command(command):
             return
         
         try:
-            with open(file_name, 'w', encoding='utf-8') as output_file:
+            with open(file_name, 'w') as output_file:
                 subprocess.run(cmd_parts, env=os.environ, stdout=output_file, stderr=sys.stderr, check=False)
-        except (OSError, IOError) as e:
+        except Exception as e:
             sys.stdout.write(f"Error: {e}\n")
     else:
         subprocess.run(parts, env=os.environ, check=False)
@@ -52,12 +53,19 @@ def main():
         cmd = var[0]
         args = var[1:]
         
+        if '>' in args or '1>' in args:
+            execute_command(command)
+            continue
+        
         match cmd:
             case "exit":
                 break
             
             case "echo":
-                sys.stdout.write(" ".join(args) + '\n')
+                if '>' in args or '1>' in args:
+                    execute_command(command)
+                else:
+                    sys.stdout.write(" ".join(args) + '\n')
             
             case 'type':
                 if not args:
