@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import shlex
+import readline
 
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
@@ -9,6 +10,13 @@ def find_executable(command, path_dirs):
         full_path = os.path.join(directory, command)
         if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
             return full_path
+    return None
+
+def completer(text, state):
+    """Autocomplete function for shell commands and filenames."""
+    options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text)]
+    if state < len(options):
+        return options[state]
     return None
 
 def execute_command(command):
@@ -63,14 +71,21 @@ def execute_command(command):
         subprocess.run(parts, env=os.environ, check=False)
 
 def main():
+    global builtin
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     
+    readline.set_completer(completer)
+    readline.parse_and_bind("tab: complete")
+    
     while True:
-        sys.stdout.write("$ ")
-        sys.stdout.flush()
-        command = input().strip()
+        try:
+            sys.stdout.write("$ ")
+            sys.stdout.flush()
+            command = input().strip()
+        except EOFError:
+            break
         
         if not command:
             continue
