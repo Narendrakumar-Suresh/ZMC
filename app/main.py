@@ -23,7 +23,7 @@ def get_executables(path_dirs):
                     if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
                         executables.add(file)  # Add only the filename
             except PermissionError:
-                continue 
+                continue  # Ignore directories we can't access
     return executables
 
 def completer(text, state):
@@ -32,12 +32,13 @@ def completer(text, state):
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)  # Refresh executables dynamically
 
+    # Collect possible completions
     options = sorted(cmd for cmd in builtin + list(executables) + os.listdir('.') if cmd.startswith(text))
 
+    # Return the matching option based on state
     if state < len(options):
-        return options[state] + ' '  
+        return options[state] + ' '  # Append space after autocompletion
     return None
-
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
     parts = shlex.split(command, posix=True)
