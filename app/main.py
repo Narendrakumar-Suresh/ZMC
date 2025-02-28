@@ -33,23 +33,43 @@ def completer(text, state):
     """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
 
+    # Get executables from PATH
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
-    
+
+    # Include built-in commands
     all_commands = builtin + list(executables)
+
+    # Get possible matches that start with the text
     options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
 
+    # Reset tab_press_count if text has changed
     if text != previous_completion_text:
         previous_completion_text = text
         tab_press_count = 0
 
+    # If only one match, autocomplete immediately with a space
     if len(options) == 1:
         return options[0] + ' '
 
+    # If multiple matches exist
     if len(options) > 1:
-        if state == 0:
-            return options[0] + ' '  # Just pick the first available match
+        if tab_press_count == 0:
+            tab_press_count += 1
+            sys.stdout.write("\a")  # Bell sound
+            sys.stdout.flush()
+            return None
+        elif tab_press_count == 1:
+            tab_press_count += 1
+            sys.stdout.write("\n" + "  ".join(options) + "\n")
+            sys.stdout.write("$ " + text)  # Reprint prompt with typed text
+            sys.stdout.flush()
+            return None
+
+        # Return the first match directly
+        if state < len(options):
+            return options[state] + ' '
 
     return None
 
