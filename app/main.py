@@ -47,9 +47,14 @@ def completer(text, state):
         previous_completion_text = text
         tab_press_count = 0
 
+    # Debug: Print options and state
+    print(f"Debug: text='{text}', state={state}, options={options}")  # Debug print
+
     # Handle single match
     if len(options) == 1 and state == 0:
-        return options[0] + ' '  # Auto-complete single match immediately
+        completion = options[0] + ' '  # Auto-complete single match immediately
+        print(f"Debug: Returning completion='{completion}'")  # Debug print
+        return completion
 
     # Handle multiple matches
     if len(options) > 1:
@@ -61,7 +66,7 @@ def completer(text, state):
                 sys.stdout.write("\a")  # Ring the bell
                 sys.stdout.flush()
                 return None
-            
+            # Second TAB press: Show all matches
             elif tab_press_count == 2:
                 sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
                 sys.stdout.write("$ " + text)  # Reprint prompt with typed text
@@ -70,7 +75,9 @@ def completer(text, state):
 
         # Return the current match if there are multiple options
         if state < len(options):
-            return options[state] + ' '
+            completion = options[state] + ' '
+            print(f"Debug: Returning completion='{completion}'")  # Debug print
+            return completion
 
     return None
 
