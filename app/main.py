@@ -29,7 +29,6 @@ def get_executables(path_dirs):
 previous_completion_text = None
 
 def completer(text, state):
-    
     """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
 
@@ -49,32 +48,16 @@ def completer(text, state):
         previous_completion_text = text
         tab_press_count = 0
 
-    # Handle single match
-    if len(options) == 1 and state == 0:
-        return options[0] + ' '  # Auto-complete single match immediately
+    # If there's exactly one match, return it immediately with a space
+    if len(options) == 1:
+        return options[0] + ' '
 
-    # Handle multiple matches
-    if len(options) > 1:
-        if state == 0:
-            tab_press_count += 1
-
-            # First TAB press: Ring the bell
-            if tab_press_count == 1:
-                sys.stdout.write("\a")  # Ring the bell
-                sys.stdout.flush()
-                return None
-            # Second TAB press: Show all matches
-            elif tab_press_count == 2:
-                sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
-                sys.stdout.write("$ " + text)  # Reprint prompt with typed text
-                sys.stdout.flush()
-                return None
-
-        # Return the current match if there are multiple options
-        if state < len(options):
-            return options[state] + ' '
+    # If multiple matches exist, cycle through them
+    if state < len(options):
+        return options[state] + ' '
 
     return None
+
 
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
