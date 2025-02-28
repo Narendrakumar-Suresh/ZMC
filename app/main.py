@@ -4,8 +4,7 @@ import subprocess
 import shlex
 import readline
 
-# Globals for tracking tab completion
-tab_press_count = 0  
+tab_press_count = 0
 last_completion_text = ""
 
 def find_executable(command, path_dirs):
@@ -20,26 +19,28 @@ def get_executables(path_dirs):
     """Retrieve all executable files from directories in PATH."""
     executables = set()
     for directory in path_dirs:
-        if os.path.isdir(directory):  
+        if os.path.isdir(directory):  # Ensure it's a valid directory
             try:
                 for file in os.listdir(directory):
                     full_path = os.path.join(directory, file)
                     if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                        executables.add(file)  
+                        executables.add(file)  # Add only the filename
             except PermissionError:
-                continue  
+                continue  # Ignore directories we can't access
     return executables
 
 def longest_common_prefix(strings):
-    """Find the longest common prefix of a list of strings."""
+    """Finds the longest common prefix among a list of strings."""
     if not strings:
         return ""
+    
     prefix = strings[0]
     for string in strings[1:]:
         while not string.startswith(prefix):
             prefix = prefix[:-1]
             if not prefix:
                 return ""
+    
     return prefix
 
 def completer(text, state):
@@ -50,7 +51,6 @@ def completer(text, state):
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
 
-    # Collect possible matches
     options = sorted(cmd for cmd in builtin + list(executables) if cmd.startswith(text))
 
     if not options:
@@ -59,16 +59,20 @@ def completer(text, state):
     if state == 0:
         if len(options) == 1:
             tab_press_count = 0
-            sys.stdout.write(options[0] + " ")  # Ensure completion is displayed
+            sys.stdout.write("\r$ " + options[0] + " ")  # Replace the prompt with the completed text
             sys.stdout.flush()
+            readline.insert_text(options[0] + " ")  # Set readline buffer
+            readline.redisplay()
             return options[0] + " "
 
         common_prefix = longest_common_prefix(options)
 
         if common_prefix and common_prefix != text:
             last_completion_text = common_prefix
-            sys.stdout.write("\r$ " + common_prefix)  # Show updated text in the prompt
+            sys.stdout.write("\r$ " + common_prefix)  # Properly replace previous text
             sys.stdout.flush()
+            readline.insert_text(common_prefix)  # Update input buffer
+            readline.redisplay()
             return common_prefix
 
         if tab_press_count == 0:
@@ -168,9 +172,7 @@ def main():
                 break
             
             case "echo":
-                if '>' in args or '1>' in args or '2>' in args or '>>' in args or '1>>' in args or '2>>' in args:
-                    execute_command(command)
-                else:
+                if args:
                     sys.stdout.write(" ".join(args) + '\n')
             
             case 'type':
