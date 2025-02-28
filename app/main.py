@@ -136,7 +136,6 @@ def main():
     
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
-    readline.set_completion_display_matches_hook(display_matches)
     
     while True:
         try:
