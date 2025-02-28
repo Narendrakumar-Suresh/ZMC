@@ -30,8 +30,7 @@ def completer(text, state):
     """Autocomplete function for shell commands and filenames."""
     options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text)]
     if state < len(options):
-        return options[state] + ' ' if len(options) == 1 else options[state]
-    return None
+        return options[state] + ' '
 
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
