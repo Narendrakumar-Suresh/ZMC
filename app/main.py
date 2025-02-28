@@ -4,9 +4,6 @@ import subprocess
 import shlex
 import readline
 
-tab_press_count = 0
-previous_completion_text = None
-
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
     for directory in path_dirs:
@@ -29,6 +26,21 @@ def get_executables(path_dirs):
                 continue
     return executables
 
+def longest_common_prefix(strings):
+    """Finds the longest common prefix of a list of strings."""
+    if not strings:
+        return ""
+    prefix = strings[0]
+    for string in strings[1:]:
+        while not string.startswith(prefix):
+            prefix = prefix[:-1]
+            if not prefix:
+                return ""
+    return prefix
+
+previous_completion_text = None
+tab_press_count = 0
+
 def completer(text, state):
     """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
@@ -49,34 +61,33 @@ def completer(text, state):
         previous_completion_text = text
         tab_press_count = 0
 
-    # Handle single match (auto-complete immediately)
-    if len(options) == 1:
-        return options[0] + ' '  # Auto-complete single match
+    # Handle longest common prefix completion
+    if options:
+        common_prefix = longest_common_prefix(options)
+        
+        # If the common prefix is longer than input, complete it
+        if common_prefix != text:
+            return common_prefix  # Do NOT add a space yet (still more matches)
 
-    # Handle multiple matches
-    if len(options) > 1:
-        if state == 0:
+        # If there's only one match left, add a space
+        if len(options) == 1:
+            return options[0] + ' '
+
+        # First TAB press: Ring the bell
+        if tab_press_count == 0:
+            sys.stdout.write("\a")  # Ring the bell
+            sys.stdout.flush()
             tab_press_count += 1
+            return None
 
-            # First TAB press: Ring the bell
-            if tab_press_count == 1:
-                sys.stdout.write("\a")  # Ring the bell
-                sys.stdout.flush()
-                return None
-
-            # Second TAB press: Show all matches
-            elif tab_press_count == 2:
-                sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
-                sys.stdout.write("$ " + text)  # Reprint prompt with typed text
-                sys.stdout.flush()
-                return None
-
-        # Return the current match if there are multiple options
-        if state < len(options):
-            return options[state] + ' '
+        # Second TAB press: Show all matches
+        if tab_press_count == 1:
+            sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
+            sys.stdout.write("$ " + text)  # Reprint prompt with typed text
+            sys.stdout.flush()
+            return None
 
     return None
-
 
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
@@ -89,7 +100,6 @@ def execute_command(command):
 def main():
     global builtin
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
-
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     
