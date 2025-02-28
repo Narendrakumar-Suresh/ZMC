@@ -1,10 +1,10 @@
-#GPT
 import sys
 import os
 import subprocess
 import shlex
 import readline
 
+# Globals for completion state.
 previous_completion_text = None
 tab_press_count = 0
 
@@ -34,40 +34,43 @@ def completer(text, state):
     """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
 
-    # Get executables from PATH
+    # Dynamically obtain executables from PATH.
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
 
-    # Include built-in commands
+    # Combine built-in commands and executables.
     all_commands = builtin + list(executables)
 
-    # Get possible matches that start with the text
+    # Filter for those starting with the current text.
     options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
 
-    # Reset tab_press_count if text changed
+    # Reset our tab count if the text has changed.
     if text != previous_completion_text:
         previous_completion_text = text
         tab_press_count = 0
 
-    # If there's exactly one match, return it immediately with a space.
+    # If there's exactly one match, complete it immediately with a trailing space.
     if len(options) == 1:
         return options[0] + ' '
 
-    # If there are multiple matches, use bell on first TAB and list on second.
+    # If there are multiple matches:
     if len(options) > 1:
         if state == 0:
             if tab_press_count == 0:
+                # On the first TAB press, ring the bell.
                 tab_press_count += 1
                 sys.stdout.write("\a")
                 sys.stdout.flush()
                 return None
             elif tab_press_count == 1:
+                # On the second TAB press, display all matches (separated by 2 spaces)
                 tab_press_count += 1
                 sys.stdout.write("\n" + "  ".join(options) + "\n")
                 sys.stdout.write("$ " + text)
                 sys.stdout.flush()
                 return None
+        # If the completer is iterated, return each match in turn.
         if state < len(options):
             return options[state] + ' '
 
