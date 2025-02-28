@@ -31,23 +31,24 @@ def get_executables(path_dirs):
     return executables
 
 def display_matches(substitution, matches, longest_match_length):
-    """Display multiple completion matches and redisplay the prompt."""
+    # Display matches on a new line
     sys.stdout.write("\n")
     if matches:
         sys.stdout.write("  ".join(matches) + "\n")
-    sys.stdout.write("$ ")
+    # Get the current input line and redisplay it with the prompt
+    current_line = readline.get_line_buffer()
+    sys.stdout.write("$ " + current_line)
     sys.stdout.flush()
 
 def completer(text, state):
-    """Autocomplete function for shell commands."""
+    # List of all possible commands (built-ins and executables)
     all_commands = builtin + list(executables)
+    # Find commands that start with the input text
     matches = [cmd for cmd in all_commands if cmd.startswith(text)]
     matches = sorted(set(matches))  # Remove duplicates and sort
+    # Return the match corresponding to the current state, or None if out of range
     if state < len(matches):
-        if len(matches) == 1:
-            return matches[state] + ' '  # Add space for unique match
-        else:
-            return matches[state]  # No space for multiple matches
+        return matches[state]
     return None
 
 def parse_command(command):
@@ -129,13 +130,16 @@ def execute_command(cmd_args, stdout_file=None, stderr_file=None, stdout_append=
 
 def main():
     global builtin, executables
+    global builtin, executables
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
-    executables = get_executables(path_dirs)
+    executables = get_executables(path_dirs)  # Function to populate executables
     
+    # Set up readline autocompletion
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
+    readline.set_completion_display_matches_hook(display_matches)
     
     while True:
         try:
