@@ -31,12 +31,11 @@ def get_executables(path_dirs):
     return executables
 
 def display_matches(substitution, matches, longest_match_length):
-    """Display multiple completion matches without persisting the prompt."""
+    """Display multiple completion matches and redisplay the prompt."""
     sys.stdout.write("\n")
     if matches:
         sys.stdout.write("  ".join(matches) + "\n")
-    # Redisplay the clean prompt, not the substitution
-    sys.stdout.write("$ ")
+    sys.stdout.write("$ " + substitution)
     sys.stdout.flush()
 
 def completer(text, state):
@@ -51,90 +50,23 @@ def completer(text, state):
             return matches[state]  # No space for multiple matches
     return None
 
-def parse_command(command):
-    """Parse command to separate arguments and redirection."""
-    parts = shlex.split(command, posix=True)
-    cmd_args = []
-    stdout_file = None
-    stderr_file = None
-    stdout_append = False
-    stderr_append = False
-    
-    i = 0
-    while i < len(parts):
-        if parts[i] == '>':
-            if i + 1 < len(parts):
-                stdout_file = parts[i + 1]
-                stdout_append = False
-                i += 2
-            else:
-                raise ValueError("Missing file after '>'")
-        elif parts[i] == '>>':
-            if i + 1 < len(parts):
-                stdout_file = parts[i + 1]
-                stdout_append = True
-                i += 2
-            else:
-                raise ValueError("Missing file after '>>'")
-        elif parts[i] == '2>':
-            if i + 1 < len(parts):
-                stderr_file = parts[i + 1]
-                stderr_append = False
-                i += 2
-            else:
-                raise ValueError("Missing file after '2>'")
-        elif parts[i] == '2>>':
-            if i + 1 < len(parts):
-                stderr_file = parts[i + 1]
-                stderr_append = True
-                i += 2
-            else:
-                raise ValueError("Missing file after '2>>'")
-        elif parts[i] == '1>>':
-            if i + 1 < len(parts):
-                stdout_file = parts[i + 1]
-                stdout_append = True
-                i += 2
-            else:
-                raise ValueError("Missing file after '1>>'")
-        else:
-            cmd_args.append(parts[i])
-            i += 1
-    
-    return cmd_args, stdout_file, stderr_file, stdout_append, stderr_append
-
-def execute_command(cmd_args, stdout_file=None, stderr_file=None, stdout_append=False, stderr_append=False):
+def execute_command(command):
     """Execute a command with optional output and error redirection."""
-    stdout = subprocess.PIPE if stdout_file is None else open(stdout_file, 'a' if stdout_append else 'w')
-    stderr = subprocess.PIPE if stderr_file is None else open(stderr_file, 'a' if stderr_append else 'w')
-    
+    parts = shlex.split(command, posix=True)
     try:
-        process = subprocess.run(
-            cmd_args,
-            env=os.environ,
-            stdout=stdout,
-            stderr=stderr,
-            check=False
-        )
-        if stdout == subprocess.PIPE and process.stdout:
-            sys.stdout.write(process.stdout.decode())
-        if stderr == subprocess.PIPE and process.stderr:
-            sys.stderr.write(process.stderr.decode())
+        subprocess.run(parts, env=os.environ, check=False)
     except Exception as e:
         sys.stdout.write(f"Error: {e}\n")
-    finally:
-        if stdout_file and stdout != subprocess.PIPE:
-            stdout.close()
-        if stderr_file and stderr != subprocess.PIPE:
-            stderr.close()
 
 def main():
     global builtin, executables
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
+    # Precompute executables once
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
     
+    # Set up readline for autocompletion
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     readline.set_completion_display_matches_hook(display_matches)
@@ -150,54 +82,29 @@ def main():
         if not command:
             continue
         
-        try:
-            cmd_args, stdout_file, stderr_file, stdout_append, stderr_append = parse_command(command)
-            if not cmd_args:
-                continue
-            cmd = cmd_args[0]
-            args = cmd_args[1:]
-        except ValueError as e:
-            sys.stdout.write(f"Error: {e}\n")
-            continue
+        var = shlex.split(command, posix=True)
+        cmd = var[0]
+        args = var[1:]
         
         match cmd:
             case "exit":
                 break
             case "echo":
-                output = " ".join(args) + "\n"
-                if stdout_file:
-                    with open(stdout_file, 'a' if stdout_append else 'w') as f:
-                        f.write(output)
-                else:
-                    sys.stdout.write(output)
+                sys.stdout.write(" ".join(args) + "\n")
             case "pwd":
-                output = os.getcwd() + "\n"
-                if stdout_file:
-                    with open(stdout_file, 'a' if stdout_append else 'w') as f:
-                        f.write(output)
-                else:
-                    sys.stdout.write(output)
+                sys.stdout.write(os.getcwd() + "\n")
             case "cd":
                 path = args[0] if args else os.path.expanduser("~")
                 try:
                     os.chdir(path)
                 except Exception as e:
-                    if stderr_file:
-                        with open(stderr_file, 'a' if stderr_append else 'w') as f:
-                            f.write(f"cd: {path}: {e}\n")
-                    else:
-                        sys.stdout.write(f"cd: {path}: {e}\n")
+                    sys.stdout.write(f"cd: {path}: {e}\n")
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 if executable_path:
-                    execute_command(cmd_args, stdout_file, stderr_file, stdout_append, stderr_append)
+                    execute_command(command)
                 else:
-                    error_msg = f"{cmd}: command not found\n"
-                    if stderr_file:
-                        with open(stderr_file, 'a' if stderr_append else 'w') as f:
-                            f.write(error_msg)
-                    else:
-                        sys.stdout.write(error_msg)
+                    sys.stdout.write(f"{cmd}: command not found\n")
 
 if __name__ == "__main__":
     main()
