@@ -4,6 +4,8 @@ import subprocess
 import shlex
 import readline
 
+previous_completion_text = None
+tab_press_count = 0
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
     for directory in path_dirs:
@@ -30,30 +32,39 @@ completion_attempt = 0
 
 def completer(text, state):
     """Autocomplete function for shell commands, filenames, and executables."""
+    global previous_completion_text, tab_press_count
+
+    # Get executables from PATH
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
-    executables = get_executables(path_dirs)  # Refresh executables dynamically
+    executables = get_executables(path_dirs)
 
-    # Collect possible completions
-    options = sorted(cmd for cmd in builtin + list(executables) + os.listdir('.') if cmd.startswith(text))
-    
+    # Get possible matches
+    options = sorted(cmd for cmd in executables if cmd.startswith(text))
+
     if state == 0:
-        if len(options) > 1:
-            sys.stdout.write("\a")  # Ring the bell on first TAB press
+        if text == previous_completion_text:
+            tab_press_count += 1
+        else:
+            previous_completion_text = text
+            tab_press_count = 1
+
+        if len(options) > 1 and tab_press_count == 1:
+            sys.stdout.write("\a")  # Ring the bell
             sys.stdout.flush()
             return None
         elif len(options) == 1:
-            return options[0] + ' '  # Append space for single match
+            return options[0] + ' '  # Auto-complete single match
 
-    if state == 1 and len(options) > 1:
+    if tab_press_count == 2 and len(options) > 1:
         sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
-        sys.stdout.write("$ " + text)  # Redisplay prompt with the typed text
+        sys.stdout.write("$ " + text)  # Reprint prompt with typed text
         sys.stdout.flush()
         return None
-    
+
     if state < len(options):
         return options[state] + ' '
-    
+
     return None
 
 def execute_command(command):
