@@ -27,10 +27,18 @@ def get_executables(path_dirs):
     return executables
 
 def completer(text, state):
-    """Autocomplete function for shell commands and filenames."""
-    options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text)]
+    """Autocomplete function for shell commands, filenames, and executables."""
+    path_variable = os.environ.get("PATH", "")
+    path_dirs = path_variable.split(":") if path_variable else []
+    executables = get_executables(path_dirs)  # Refresh executables dynamically
+
+    # Collect possible completions
+    options = sorted(cmd for cmd in builtin + list(executables) + os.listdir('.') if cmd.startswith(text))
+
+    # Return the matching option based on state
     if state < len(options):
-        return options[state] + ' '
+        return options[state] + ' '  # Append space after autocompletion
+    return None
 
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
