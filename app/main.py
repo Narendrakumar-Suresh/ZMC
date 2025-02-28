@@ -50,23 +50,85 @@ def completer(text, state):
             return matches[state]  # No space for multiple matches
     return None
 
-def execute_command(command):
-    """Execute a command with optional output and error redirection."""
+def parse_command(command):
+    """Parse command to separate arguments and redirection."""
     parts = shlex.split(command, posix=True)
+    cmd_args = []
+    stdout_file = None
+    stderr_file = None
+    stdout_append = False
+    stderr_append = False
+    
+    i = 0
+    while i < len(parts):
+        if parts[i] == '>':
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                stdout_append = False
+                i += 2
+            else:
+                raise ValueError("Missing file after '>'")
+        elif parts[i] == '>>':
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                stdout_append = True
+                i += 2
+            else:
+                raise ValueError("Missing file after '>>'")
+        elif parts[i] == '2>':
+            if i + 1 < len(parts):
+                stderr_file = parts[i + 1]
+                stderr_append = False
+                i += 2
+            else:
+                raise ValueError("Missing file after '2>'")
+        elif parts[i] == '2>>':
+            if i + 1 < len(parts):
+                stderr_file = parts[i + 1]
+                stderr_append = True
+                i += 2
+            else:
+                raise ValueError("Missing file after '2>>'")
+        else:
+            cmd_args.append(parts[i])
+            i += 1
+    
+    return cmd_args, stdout_file, stderr_file, stdout_append, stderr_append
+
+def execute_command(cmd_args, stdout_file=None, stderr_file=None, stdout_append=False, stderr_append=False):
+    """Execute a command with optional output and error redirection."""
+    stdout = None
+    stderr = None
     try:
-        subprocess.run(parts, env=os.environ, check=False)
+        if stdout_file:
+            mode = 'a' if stdout_append else 'w'
+            stdout = open(stdout_file, mode)
+        if stderr_file:
+            mode = 'a' if stderr_append else 'w'
+            stderr = open(stderr_file, mode)
+        subprocess.run(cmd_args, env=os.environ, stdout=stdout, stderr=stderr, check=False)
+    except FileNotFoundError as e:
+        if stdout_file and not os.path.exists(os.path.dirname(stdout_file) or '.'):
+            sys.stderr.write(f"cannot create file '{stdout_file}': No such file or directory\n")
+        elif stderr_file and not os.path.exists(os.path.dirname(stderr_file) or '.'):
+            sys.stderr.write(f"cannot create file '{stderr_file}': No such file or directory\n")
+        else:
+            sys.stderr.write(f"{cmd_args[0]}: command not found\n")
     except Exception as e:
-        sys.stdout.write(f"Error: {e}\n")
+        sys.stderr.write(f"Error: {e}\n")
+    finally:
+        if stdout:
+            stdout.close()
+        if stderr:
+            stderr.close()
 
 def main():
     global builtin, executables
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
-    # Precompute executables once
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
     
-    # Set up readline for autocompletion
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     readline.set_completion_display_matches_hook(display_matches)
@@ -82,29 +144,73 @@ def main():
         if not command:
             continue
         
-        var = shlex.split(command, posix=True)
-        cmd = var[0]
-        args = var[1:]
+        try:
+            cmd_args, stdout_file, stderr_file, stdout_append, stderr_append = parse_command(command)
+            if not cmd_args:
+                continue
+            cmd = cmd_args[0]
+            args = cmd_args[1:]
+        except ValueError as e:
+            sys.stderr.write(f"Error: {e}\n")
+            continue
         
         match cmd:
             case "exit":
                 break
             case "echo":
-                sys.stdout.write(" ".join(args) + "\n")
+                output = " ".join(args) + "\n"
+                if stdout_file:
+                    try:
+                        mode = 'a' if stdout_append else 'w'
+                        with open(stdout_file, mode) as f:
+                            f.write(output)
+                    except FileNotFoundError:
+                        sys.stderr.write(f"cannot create file '{stdout_file}': No such file or directory\n")
+                    except Exception as e:
+                        sys.stderr.write(f"Error: {e}\n")
+                else:
+                    sys.stdout.write(output)
+            case "type":
+                if args:
+                    arg = args[0]
+                    if arg in builtin:
+                        sys.stdout.write(f"{arg} is a shell builtin\n")
+                    elif find_executable(arg, path_dirs):
+                        sys.stdout.write(f"{arg} is {find_executable(arg, path_dirs)}\n")
+                    else:
+                        sys.stdout.write(f"{arg}: not found\n")
             case "pwd":
-                sys.stdout.write(os.getcwd() + "\n")
+                output = os.getcwd() + "\n"
+                if stdout_file:
+                    try:
+                        mode = 'a' if stdout_append else 'w'
+                        with open(stdout_file, mode) as f:
+                            f.write(output)
+                    except FileNotFoundError:
+                        sys.stderr.write(f"cannot create file '{stdout_file}': No such file or directory\n")
+                    except Exception as e:
+                        sys.stderr.write(f"Error: {e}\n")
+                else:
+                    sys.stdout.write(output)
             case "cd":
                 path = args[0] if args else os.path.expanduser("~")
                 try:
                     os.chdir(path)
                 except Exception as e:
-                    sys.stdout.write(f"cd: {path}: {e}\n")
+                    error_msg = f"cd: {path}: {e}\n"
+                    if stderr_file:
+                        try:
+                            mode = 'a' if stderr_append else 'w'
+                            with open(stderr_file, mode) as f:
+                                f.write(error_msg)
+                        except FileNotFoundError:
+                            sys.stderr.write(f"cannot create file '{stderr_file}': No such file or directory\n")
+                        except Exception as e:
+                            sys.stderr.write(f"Error: {e}\n")
+                    else:
+                        sys.stderr.write(error_msg)
             case _:
-                executable_path = find_executable(cmd, path_dirs)
-                if executable_path:
-                    execute_command(command)
-                else:
-                    sys.stdout.write(f"{cmd}: command not found\n")
+                execute_command(cmd_args, stdout_file, stderr_file, stdout_append, stderr_append)
 
 if __name__ == "__main__":
     main()
