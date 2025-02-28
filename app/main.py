@@ -47,29 +47,30 @@ def completer(text, state):
         previous_completion_text = text
         tab_press_count = 0
 
-    # Handle multiple TAB presses
-    if state == 0:
-        tab_press_count += 1
+    # Handle single match
+    if len(options) == 1 and state == 0:
+        return options[0] + ' '  # Auto-complete single match immediately
 
-        # If there are multiple matches, handle first and second TAB presses
-        if len(options) > 1:
+    # Handle multiple matches
+    if len(options) > 1:
+        if state == 0:
+            tab_press_count += 1
+
+            # First TAB press: Ring the bell
             if tab_press_count == 1:
-                sys.stdout.write("\a")  # Ring the bell on first TAB press
+                sys.stdout.write("\a")  # Ring the bell
                 sys.stdout.flush()
                 return None
+            # Second TAB press: Show all matches
             elif tab_press_count == 2:
-                # Print all matches on second TAB press
-                sys.stdout.write("\n" + "  ".join(options) + "\n")
+                sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
                 sys.stdout.write("$ " + text)  # Reprint prompt with typed text
                 sys.stdout.flush()
                 return None
-        elif len(options) == 1:
-            # Auto-complete single match
-            return options[0] + ' '
 
-    # Return the current match if there are multiple options
-    if state < len(options):
-        return options[state] + ' '
+        # Return the current match if there are multiple options
+        if state < len(options):
+            return options[state] + ' '
 
     return None
 
