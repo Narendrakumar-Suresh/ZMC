@@ -29,7 +29,6 @@ def get_executables(path_dirs):
 previous_completion_text = None
 
 def completer(text, state):
-    
     """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
 
@@ -38,7 +37,7 @@ def completer(text, state):
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
 
-    # Include built-in commands
+    # Include built-in commands in autocomplete
     all_commands = builtin + list(executables)
 
     # Get possible matches that start with the text
