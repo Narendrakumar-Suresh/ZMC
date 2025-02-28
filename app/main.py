@@ -1,129 +1,180 @@
-import sys
-import os
-import subprocess
-import shlex
+from collections.abc import Mapping
 import readline
+import shlex
+import subprocess
+import sys
+import pathlib
+import os
+from typing import Final, TextIO
 
-# Global state for completion.
-previous_completion_text = None
-tab_press_count = 0
+SHELL_BUILTINS: Final[list[str]] = [
+    "echo",
+    "exit",
+    "type",
+    "pwd",
+    "cd",
+]
 
-def find_executable(command, path_dirs):
-    """Search for an executable in the PATH directories."""
-    for directory in path_dirs:
-        full_path = os.path.join(directory, command)
-        if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-            return full_path
-    return None
+def parse_programs_in_path(path: str, programs: dict[str, pathlib.Path]) -> None:
+    """Creates a mapping of programs in path to their paths"""
+    # Note: Using .walk() instead of .rglob() per the reference.
+    for p, _, bins in pathlib.Path(path).walk():
+        for b in bins:
+            programs[b] = p / b
 
-def get_executables(path_dirs):
-    """Retrieve all executable files from directories in PATH."""
-    executables = set()
-    for directory in path_dirs:
-        if os.path.isdir(directory):
-            try:
-                for file in os.listdir(directory):
-                    full_path = os.path.join(directory, file)
-                    if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                        executables.add(file)
-            except PermissionError:
-                continue
-    return executables
+def generate_program_paths() -> Mapping[str, pathlib.Path]:
+    programs: dict[str, pathlib.Path] = {}
+    for p in (os.getenv("PATH") or "").split(":"):
+        parse_programs_in_path(p, programs)
+    return programs
 
-def completer(text, state):
-    """Autocomplete function for shell commands, filenames, and executables."""
-    global previous_completion_text, tab_press_count
+PROGRAMS_IN_PATH: Final[Mapping[str, pathlib.Path]] = {**generate_program_paths()}
+COMPLETIONS: Final[list[str]] = [*SHELL_BUILTINS, *PROGRAMS_IN_PATH.keys()]
 
-    # Get executables from PATH
-    path_variable = os.environ.get("PATH", "")
-    path_dirs = path_variable.split(":") if path_variable else []
-    executables = get_executables(path_dirs)
+# Global state for tab completion.
+tab_press_count: int = 0
+previous_text: str = ""
 
-    # Combine built-in commands and executables.
-    all_commands = builtin + list(executables)
+def complete(text: str, state: int) -> str | None:
+    """
+    If there's exactly one match, return it immediately (with a trailing space).
+    If there are multiple matches:
+      - On the first TAB press, just ring the bell.
+      - On the second TAB press, print all matching commands separated by 2 spaces,
+        then reprint the prompt with the current text.
+    For subsequent calls (state > 0), cycle through the matches.
+    """
+    global tab_press_count, previous_text
 
-    # Get possible matches that start with the given text.
-    options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
-
-    # Reset tab_press_count if text has changed.
-    if text != previous_completion_text:
-        previous_completion_text = text
+    # Build list of matching completions.
+    matches = sorted([s for s in COMPLETIONS if s.startswith(text)])
+    
+    # Reset tab count if text has changed.
+    if text != previous_text:
+        previous_text = text
         tab_press_count = 0
 
-    # If there's exactly one match, complete it immediately (only on state==0).
-    if len(options) == 1:
-        if state == 0:
-            return options[0] + ' '
-        else:
-            return None
+    # If no matches, return None.
+    if not matches:
+        return None
 
-    # Handle multiple matches.
-    if len(options) > 1:
-        if state == 0:
-            if tab_press_count == 0:
-                tab_press_count += 1
-                sys.stdout.write("\a")  # Ring the bell on first TAB press.
-                sys.stdout.flush()
-                return None
-            elif tab_press_count == 1:
-                tab_press_count += 1
-                # Print all matches separated by 2 spaces.
-                sys.stdout.write("\n" + "  ".join(options) + "\n")
-                sys.stdout.write("$ " + text)
-                sys.stdout.flush()
-                return None
-        if state < len(options):
-            return options[state] + ' '
+    # If exactly one match, always return that (only on state==0).
+    if len(matches) == 1:
+        return matches[0] + " " if state == 0 else None
+
+    # If there are multiple matches:
+    if state == 0:
+        tab_press_count += 1
+        if tab_press_count == 1:
+            # First TAB press: ring the bell.
+            sys.stdout.write("\a")
+            sys.stdout.flush()
+            return None
+        elif tab_press_count == 2:
+            # Second TAB press: print all matches (joined by two spaces) and reprint prompt.
+            print()  # Move to a new line.
+            print("  ".join(matches))
+            # Reprint the prompt with current text (without a trailing newline).
+            sys.stdout.write("$ " + text)
+            sys.stdout.flush()
+            return None
+    # For cycling through matches, return the match corresponding to state.
+    if state < len(matches):
+        return matches[state] + " "
     return None
 
-def execute_command(command):
-    """Execute a command with optional output and error redirection."""
-    parts = shlex.split(command, posix=True)
-    try:
-        subprocess.run(parts, env=os.environ, check=False)
-    except Exception as e:
-        sys.stdout.write(f"Error: {e}\n")
+# (Optional) We disable the default display hook since we handle display ourselves.
+readline.set_completion_display_matches_hook(None)
+readline.parse_and_bind("tab: complete")
+readline.set_completer(complete)
 
 def main():
-    global builtin
-    builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
-    readline.set_completer(completer)
-    readline.parse_and_bind("tab: complete")
-    
     while True:
+        sys.stdout.write("$ ")
+        sys.stdout.flush()
         try:
-            sys.stdout.write("$ ")
-            sys.stdout.flush()
-            command = input()
+            line = input()
         except EOFError:
             break
-        
-        if not command:
-            continue
-        
-        var = shlex.split(command, posix=True)
-        cmd = var[0]
-        args = var[1:]
-        
-        match cmd:
-            case "exit":
-                break
-            case "echo":
-                sys.stdout.write(" ".join(args) + "\n")
-            case "pwd":
-                sys.stdout.write(os.getcwd() + "\n")
-            case "cd":
-                path = args[0] if args else os.path.expanduser("~")
-                try:
-                    os.chdir(path)
-                except Exception as e:
-                    sys.stdout.write(f"cd: {path}: {e}\n")
-            case _:
-                executable_path = find_executable(cmd, os.environ.get("PATH", "").split(":"))
-                if executable_path:
-                    execute_command(command)
-                else:
-                    sys.stdout.write(f"{cmd}: command not found\n")
+        cmds = shlex.split(line)
+        out: TextIO = sys.stdout
+        err: TextIO = sys.stderr
+        close_out = False
+        close_err = False
+        try:
+            if ">" in cmds:
+                out_index = cmds.index(">")
+                out = open(cmds[out_index + 1], "w")
+                close_out = True
+                cmds = cmds[:out_index] + cmds[out_index + 2 :]
+            elif "1>" in cmds:
+                out_index = cmds.index("1>")
+                out = open(cmds[out_index + 1], "w")
+                close_out = True
+                cmds = cmds[:out_index] + cmds[out_index + 2 :]
+            if "2>" in cmds:
+                out_index = cmds.index("2>")
+                err = open(cmds[out_index + 1], "w")
+                close_err = True
+                cmds = cmds[:out_index] + cmds[out_index + 2 :]
+            if ">>" in cmds:
+                out_index = cmds.index(">>")
+                out = open(cmds[out_index + 1], "a")
+                close_out = True
+                cmds = cmds[:out_index] + cmds[out_index + 2 :]
+            elif "1>>" in cmds:
+                out_index = cmds.index("1>>")
+                out = open(cmds[out_index + 1], "a")
+                close_out = True
+                cmds = cmds[:out_index] + cmds[out_index + 2 :]
+            if "2>>" in cmds:
+                out_index = cmds.index("2>>")
+                err = open(cmds[out_index + 1], "a")
+                close_err = True
+                cmds = cmds[:out_index] + cmds[out_index + 2 :]
+            handle_all(cmds, out, err)
+        finally:
+            if close_out:
+                out.close()
+            if close_err:
+                err.close()
+
+def handle_all(cmds: list[str], out: TextIO, err: TextIO):
+    match cmds:
+        case ["echo", *s]:
+            out.write(" ".join(s) + "\n")
+        case ["type", s]:
+            type_command(s, out, err)
+        case ["exit", "0"]:
+            sys.exit(0)
+        case ["pwd"]:
+            out.write(f"{os.getcwd()}\n")
+        case ["cd", dir]:
+            cd(dir, out, err)
+        case [cmd, *args] if cmd in PROGRAMS_IN_PATH:
+            process = subprocess.Popen([cmd, *args], stdout=out, stderr=err)
+            process.wait()
+        case command:
+            out.write(f"{' '.join(command)}: command not found\n")
+
+def type_command(command: str, out: TextIO, err: TextIO):
+    if command in SHELL_BUILTINS:
+        out.write(f"{command} is a shell builtin\n")
+        return
+    if command in PROGRAMS_IN_PATH:
+        out.write(f"{command} is {PROGRAMS_IN_PATH[command]}\n")
+        return
+    out.write(f"{command}: not found\n")
+
+def cd(path: str, out: TextIO, err: TextIO) -> None:
+    if path.startswith("~"):
+        home = os.getenv("HOME") or "/root"
+        path = path.replace("~", home)
+    p = pathlib.Path(path)
+    if not p.exists():
+        out.write(f"cd: {path}: No such file or directory\n")
+        return
+    os.chdir(p)
 
 if __name__ == "__main__":
     main()
