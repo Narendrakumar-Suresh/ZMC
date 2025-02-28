@@ -42,26 +42,32 @@ def completer(text, state):
     # Get possible matches
     options = sorted(cmd for cmd in executables if cmd.startswith(text))
 
+    # Reset tab_press_count if the text has changed
+    if text != previous_completion_text:
+        previous_completion_text = text
+        tab_press_count = 0
+
+    # Handle multiple TAB presses
     if state == 0:
-        if text == previous_completion_text:
-            tab_press_count += 1
-        else:
-            previous_completion_text = text
-            tab_press_count = 1
+        tab_press_count += 1
 
-        if len(options) > 1 and tab_press_count == 1:
-            sys.stdout.write("\a")  # Ring the bell
-            sys.stdout.flush()
-            return None
+        # If there are multiple matches, handle first and second TAB presses
+        if len(options) > 1:
+            if tab_press_count == 1:
+                sys.stdout.write("\a")  # Ring the bell on first TAB press
+                sys.stdout.flush()
+                return None
+            elif tab_press_count == 2:
+                # Print all matches on second TAB press
+                sys.stdout.write("\n" + "  ".join(options) + "\n")
+                sys.stdout.write("$ " + text)  # Reprint prompt with typed text
+                sys.stdout.flush()
+                return None
         elif len(options) == 1:
-            return options[0] + ' '  # Auto-complete single match
+            # Auto-complete single match
+            return options[0] + ' '
 
-    if tab_press_count == 2 and len(options) > 1:
-        sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
-        sys.stdout.write("$ " + text)  # Reprint prompt with typed text
-        sys.stdout.flush()
-        return None
-
+    # Return the current match if there are multiple options
     if state < len(options):
         return options[state] + ' '
 
