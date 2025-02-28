@@ -4,6 +4,10 @@ import subprocess
 import shlex
 import readline
 
+# Globals for tracking tab completion
+tab_press_count = 0  
+last_completion_text = ""
+
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
     for directory in path_dirs:
@@ -16,29 +20,66 @@ def get_executables(path_dirs):
     """Retrieve all executable files from directories in PATH."""
     executables = set()
     for directory in path_dirs:
-        if os.path.isdir(directory):  # Ensure it's a valid directory
+        if os.path.isdir(directory):  
             try:
                 for file in os.listdir(directory):
                     full_path = os.path.join(directory, file)
                     if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                        executables.add(file)  # Add only the filename
+                        executables.add(file)  
             except PermissionError:
-                continue  # Ignore directories we can't access
+                continue  
     return executables
 
+def longest_common_prefix(strings):
+    """Find the longest common prefix of a list of strings."""
+    if not strings:
+        return ""
+    prefix = strings[0]
+    for string in strings[1:]:
+        while not string.startswith(prefix):
+            prefix = prefix[:-1]
+            if not prefix:
+                return ""
+    return prefix
+
 def completer(text, state):
-    """Autocomplete function for shell commands, filenames, and executables."""
+    """Custom tab completion with progressive completion."""
+    global tab_press_count, last_completion_text
+
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
-    executables = get_executables(path_dirs)  # Refresh executables dynamically
+    executables = get_executables(path_dirs)  
 
-    # Collect possible completions
-    options = sorted(cmd for cmd in builtin + list(executables) + os.listdir('.') if cmd.startswith(text))
+    # Collect possible matches
+    options = sorted(cmd for cmd in builtin + list(executables) if cmd.startswith(text))
 
-    # Return the matching option based on state
-    if state < len(options):
-        return options[state] + ' '  # Append space after autocompletion
-    return None
+    if not options:  
+        return None  
+
+    if state == 0:
+        if len(options) == 1:
+            tab_press_count = 0
+            return options[0] + " "
+        
+        common_prefix = longest_common_prefix(options)
+
+        if common_prefix and common_prefix != text:
+            last_completion_text = common_prefix
+            return common_prefix
+        
+        if tab_press_count == 0:
+            tab_press_count += 1
+            sys.stdout.write("\a")  
+            sys.stdout.flush()
+            return None
+        else:
+            sys.stdout.write("\n" + "  ".join(options) + "\n$ ")
+            sys.stdout.flush()
+            tab_press_count = 0  
+            return None
+
+    return None  
+
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
     parts = shlex.split(command, posix=True)
