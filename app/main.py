@@ -35,7 +35,7 @@ def display_matches(substitution, matches, longest_match_length):
     sys.stdout.write("\n")
     if matches:
         sys.stdout.write("  ".join(matches) + "\n")
-    sys.stdout.write("$ " + substitution)
+    sys.stdout.write("$ ")
     sys.stdout.flush()
 
 def completer(text, state):
@@ -89,6 +89,13 @@ def parse_command(command):
                 i += 2
             else:
                 raise ValueError("Missing file after '2>>'")
+        elif parts[i] == '1>>':
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                stdout_append = True
+                i += 2
+            else:
+                raise ValueError("Missing file after '1>>'")
         else:
             cmd_args.append(parts[i])
             i += 1
@@ -97,29 +104,27 @@ def parse_command(command):
 
 def execute_command(cmd_args, stdout_file=None, stderr_file=None, stdout_append=False, stderr_append=False):
     """Execute a command with optional output and error redirection."""
-    stdout = None
-    stderr = None
+    stdout = subprocess.PIPE if stdout_file is None else open(stdout_file, 'a' if stdout_append else 'w')
+    stderr = subprocess.PIPE if stderr_file is None else open(stderr_file, 'a' if stderr_append else 'w')
+    
     try:
-        if stdout_file:
-            mode = 'a' if stdout_append else 'w'
-            stdout = open(stdout_file, mode)
-        if stderr_file:
-            mode = 'a' if stderr_append else 'w'
-            stderr = open(stderr_file, mode)
-        subprocess.run(cmd_args, env=os.environ, stdout=stdout, stderr=stderr, check=False)
-    except FileNotFoundError as e:
-        if stdout_file and not os.path.exists(os.path.dirname(stdout_file) or '.'):
-            sys.stderr.write(f"cannot create file '{stdout_file}': No such file or directory\n")
-        elif stderr_file and not os.path.exists(os.path.dirname(stderr_file) or '.'):
-            sys.stderr.write(f"cannot create file '{stderr_file}': No such file or directory\n")
-        else:
-            sys.stderr.write(f"{cmd_args[0]}: command not found\n")
+        process = subprocess.run(
+            cmd_args,
+            env=os.environ,
+            stdout=stdout,
+            stderr=stderr,
+            check=False
+        )
+        if stdout == subprocess.PIPE and process.stdout:
+            sys.stdout.write(process.stdout.decode())
+        if stderr == subprocess.PIPE and process.stderr:
+            sys.stderr.write(process.stderr.decode())
     except Exception as e:
-        sys.stderr.write(f"Error: {e}\n")
+        sys.stdout.write(f"Error: {e}\n")
     finally:
-        if stdout:
+        if stdout_file and stdout != subprocess.PIPE:
             stdout.close()
-        if stderr:
+        if stderr_file and stderr != subprocess.PIPE:
             stderr.close()
 
 def main():
@@ -151,7 +156,7 @@ def main():
             cmd = cmd_args[0]
             args = cmd_args[1:]
         except ValueError as e:
-            sys.stderr.write(f"Error: {e}\n")
+            sys.stdout.write(f"Error: {e}\n")
             continue
         
         match cmd:
@@ -160,36 +165,15 @@ def main():
             case "echo":
                 output = " ".join(args) + "\n"
                 if stdout_file:
-                    try:
-                        mode = 'a' if stdout_append else 'w'
-                        with open(stdout_file, mode) as f:
-                            f.write(output)
-                    except FileNotFoundError:
-                        sys.stderr.write(f"cannot create file '{stdout_file}': No such file or directory\n")
-                    except Exception as e:
-                        sys.stderr.write(f"Error: {e}\n")
+                    with open(stdout_file, 'a' if stdout_append else 'w') as f:
+                        f.write(output)
                 else:
                     sys.stdout.write(output)
-            case "type":
-                if args:
-                    arg = args[0]
-                    if arg in builtin:
-                        sys.stdout.write(f"{arg} is a shell builtin\n")
-                    elif find_executable(arg, path_dirs):
-                        sys.stdout.write(f"{arg} is {find_executable(arg, path_dirs)}\n")
-                    else:
-                        sys.stdout.write(f"{arg}: not found\n")
             case "pwd":
                 output = os.getcwd() + "\n"
                 if stdout_file:
-                    try:
-                        mode = 'a' if stdout_append else 'w'
-                        with open(stdout_file, mode) as f:
-                            f.write(output)
-                    except FileNotFoundError:
-                        sys.stderr.write(f"cannot create file '{stdout_file}': No such file or directory\n")
-                    except Exception as e:
-                        sys.stderr.write(f"Error: {e}\n")
+                    with open(stdout_file, 'a' if stdout_append else 'w') as f:
+                        f.write(output)
                 else:
                     sys.stdout.write(output)
             case "cd":
@@ -197,20 +181,22 @@ def main():
                 try:
                     os.chdir(path)
                 except Exception as e:
-                    error_msg = f"cd: {path}: {e}\n"
                     if stderr_file:
-                        try:
-                            mode = 'a' if stderr_append else 'w'
-                            with open(stderr_file, mode) as f:
-                                f.write(error_msg)
-                        except FileNotFoundError:
-                            sys.stderr.write(f"cannot create file '{stderr_file}': No such file or directory\n")
-                        except Exception as e:
-                            sys.stderr.write(f"Error: {e}\n")
+                        with open(stderr_file, 'a' if stderr_append else 'w') as f:
+                            f.write(f"cd: {path}: {e}\n")
                     else:
-                        sys.stderr.write(error_msg)
+                        sys.stdout.write(f"cd: {path}: {e}\n")
             case _:
-                execute_command(cmd_args, stdout_file, stderr_file, stdout_append, stderr_append)
+                executable_path = find_executable(cmd, path_dirs)
+                if executable_path:
+                    execute_command(cmd_args, stdout_file, stderr_file, stdout_append, stderr_append)
+                else:
+                    error_msg = f"{cmd}: command not found\n"
+                    if stderr_file:
+                        with open(stderr_file, 'a' if stderr_append else 'w') as f:
+                            f.write(error_msg)
+                    else:
+                        sys.stdout.write(error_msg)
 
 if __name__ == "__main__":
     main()
