@@ -1,10 +1,10 @@
-import sys
-import os
-import subprocess
-import shlex
-import readline
-import pathlib
 from collections.abc import Mapping
+import readline
+import shlex
+import subprocess
+import sys
+import pathlib
+import os
 from typing import Final, TextIO
 
 SHELL_BUILTINS: Final[list[str]] = [
@@ -17,9 +17,11 @@ SHELL_BUILTINS: Final[list[str]] = [
 
 def parse_programs_in_path(path: str, programs: dict[str, pathlib.Path]) -> None:
     """Creates a mapping of programs in path to their paths"""
+    # Only add the program if it hasn't been seen yet.
     for p, _, bins in pathlib.Path(path).walk():
         for b in bins:
-            programs[b] = p / b
+            if b not in programs:
+                programs[b] = p / b
 
 def generate_program_paths() -> Mapping[str, pathlib.Path]:
     programs: dict[str, pathlib.Path] = {}
@@ -36,25 +38,18 @@ def display_matches(substitution, matches, longest_match_length):
         print("  ".join(matches))
     print("$ " + substitution, end="")
 
-# Global state for tab completion
-tab_press_count: int = 0
-previous_text: str = ""
-
 def complete(text: str, state: int) -> str | None:
     matches = list(set([s for s in COMPLETIONS if s.startswith(text)]))
     matches = sorted(matches)
     # If there's exactly one match, complete it immediately with a space.
     if len(matches) == 1:
         return matches[state] + " " if state < len(matches) else None
-    if state < len(matches):
-        return matches[state]
-    return None
+    return matches[state] if state < len(matches) else None
 
 readline.set_completion_display_matches_hook(display_matches)
 readline.parse_and_bind("tab: complete")
 readline.set_completer(complete)
 
-# Helper function: Open file for writing and ensure its directory exists.
 def open_for_write(filename: str, mode: str):
     parent = os.path.dirname(filename)
     if parent and not os.path.exists(parent):
@@ -65,20 +60,12 @@ def main():
     while True:
         sys.stdout.write("$ ")
         sys.stdout.flush()
-        try:
-            command = input()
-        except EOFError:
-            break
-        
-        if not command:
-            continue
-        
+        command = input()
         cmds = shlex.split(command)
         out: TextIO = sys.stdout
         err: TextIO = sys.stderr
         close_out = False
         close_err = False
-        
         try:
             if ">" in cmds:
                 out_index = cmds.index(">")
@@ -110,7 +97,6 @@ def main():
                 err = open_for_write(cmds[out_index + 1], "a")
                 close_err = True
                 cmds = cmds[:out_index] + cmds[out_index + 2 :]
-            
             handle_all(cmds, out, err)
         finally:
             if close_out:
