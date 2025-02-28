@@ -29,31 +29,31 @@ def get_executables(path_dirs):
 completion_attempt = 0
 
 def completer(text, state):
-    """Autocomplete function for shell commands."""
-    global completion_attempt
+    """Autocomplete function for shell commands, filenames, and executables."""
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
-    executables = get_executables(path_dirs)
-    options = sorted(cmd for cmd in builtin + list(executables) if cmd.startswith(text))
+    executables = get_executables(path_dirs)  # Refresh executables dynamically
+
+    # Collect possible completions
+    options = sorted(cmd for cmd in builtin + list(executables) + os.listdir('.') if cmd.startswith(text))
     
     if state == 0:
-        completion_attempt += 1
-    
-    if len(options) > 1 and completion_attempt == 1:
-        sys.stdout.write('\a')  # Ring bell
+        if len(options) > 1:
+            sys.stdout.write("\a")  # Ring the bell on first TAB press
+            sys.stdout.flush()
+            return None
+        elif len(options) == 1:
+            return options[0] + ' '  # Append space for single match
+
+    if state == 1 and len(options) > 1:
+        sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
+        sys.stdout.write("$ " + text)  # Redisplay prompt with the typed text
         sys.stdout.flush()
-        return None
-    
-    if len(options) > 1 and completion_attempt >= 2:
-        print("\n" + "  ".join(options))
-        sys.stdout.write("$ ")
-        sys.stdout.flush()
-        completion_attempt = 0
         return None
     
     if state < len(options):
-        completion_attempt = 0  # Reset counter on successful completion
         return options[state] + ' '
+    
     return None
 
 def execute_command(command):
