@@ -48,37 +48,41 @@ def completer(text, state):
 
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
-    executables = get_executables(path_dirs)  
+    executables = get_executables(path_dirs)
 
     # Collect possible matches
     options = sorted(cmd for cmd in builtin + list(executables) if cmd.startswith(text))
 
-    if not options:  
-        return None  
+    if not options:
+        return None
 
     if state == 0:
         if len(options) == 1:
             tab_press_count = 0
+            sys.stdout.write(options[0] + " ")  # Ensure completion is displayed
+            sys.stdout.flush()
             return options[0] + " "
-        
+
         common_prefix = longest_common_prefix(options)
 
         if common_prefix and common_prefix != text:
             last_completion_text = common_prefix
+            sys.stdout.write("\r$ " + common_prefix)  # Show updated text in the prompt
+            sys.stdout.flush()
             return common_prefix
-        
+
         if tab_press_count == 0:
             tab_press_count += 1
-            sys.stdout.write("\a")  
+            sys.stdout.write("\a")  # Ring bell
             sys.stdout.flush()
             return None
         else:
-            sys.stdout.write("\n" + "  ".join(options) + "\n$ ")
+            sys.stdout.write("\n" + "  ".join(options) + "\n$ " + text)  # Print options and restore prompt
             sys.stdout.flush()
-            tab_press_count = 0  
+            tab_press_count = 0
             return None
 
-    return None  
+    return None
 
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
