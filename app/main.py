@@ -31,11 +31,12 @@ def get_executables(path_dirs):
     return executables
 
 def display_matches(substitution, matches, longest_match_length):
-    """Display multiple completion matches and redisplay the prompt."""
+    """Display multiple completion matches without persisting the prompt."""
     sys.stdout.write("\n")
     if matches:
         sys.stdout.write("  ".join(matches) + "\n")
-    sys.stdout.write("$ " + substitution)
+    # Redisplay the clean prompt, not the substitution
+    sys.stdout.write("$ ")
     sys.stdout.flush()
 
 def completer(text, state):
@@ -89,6 +90,13 @@ def parse_command(command):
                 i += 2
             else:
                 raise ValueError("Missing file after '2>>'")
+        elif parts[i] == '1>>':
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                stdout_append = True
+                i += 2
+            else:
+                raise ValueError("Missing file after '1>>'")
         else:
             cmd_args.append(parts[i])
             i += 1
@@ -108,7 +116,6 @@ def execute_command(cmd_args, stdout_file=None, stderr_file=None, stdout_append=
             stderr=stderr,
             check=False
         )
-        # If stdout/stderr are pipes, write them to the terminal (default behavior)
         if stdout == subprocess.PIPE and process.stdout:
             sys.stdout.write(process.stdout.decode())
         if stderr == subprocess.PIPE and process.stderr:
@@ -143,7 +150,6 @@ def main():
         if not command:
             continue
         
-        # Parse command for redirection
         try:
             cmd_args, stdout_file, stderr_file, stdout_append, stderr_append = parse_command(command)
             if not cmd_args:
