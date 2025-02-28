@@ -8,7 +8,6 @@ tab_press_count = 0
 last_completion_text = ""
 
 def find_executable(command, path_dirs):
-    """Search for an executable in the PATH directories."""
     for directory in path_dirs:
         full_path = os.path.join(directory, command)
         if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
@@ -16,138 +15,73 @@ def find_executable(command, path_dirs):
     return None
 
 def get_executables(path_dirs):
-    """Retrieve all executable files from directories in PATH."""
     executables = set()
     for directory in path_dirs:
-        if os.path.isdir(directory):  # Ensure it's a valid directory
+        if os.path.isdir(directory):
             try:
                 for file in os.listdir(directory):
                     full_path = os.path.join(directory, file)
                     if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
-                        executables.add(file)  # Add only the filename
+                        executables.add(file)
             except PermissionError:
-                continue  # Ignore directories we can't access
+                continue
     return executables
 
 def longest_common_prefix(strings):
-    """Finds the longest common prefix among a list of strings."""
     if not strings:
         return ""
-    
     prefix = strings[0]
     for string in strings[1:]:
         while not string.startswith(prefix):
             prefix = prefix[:-1]
             if not prefix:
                 return ""
-    
     return prefix
 
 def completer(text, state):
-    """Custom tab completion with progressive completion."""
     global tab_press_count, last_completion_text
-
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
-
-    options = sorted(cmd for cmd in builtin + list(executables) if cmd.startswith(text))
-
+    options = sorted(cmd for cmd in executables if cmd.startswith(text))
+    
     if not options:
         return None
-
+    
     if state == 0:
         if len(options) == 1:
-            tab_press_count = 0
-            sys.stdout.write("\r$ " + options[0] + " ")  # Replace the prompt with the completed text
+            sys.stdout.write("\r$ " + options[0] + " ")
             sys.stdout.flush()
-            readline.insert_text(options[0] + " ")  # Set readline buffer
+            readline.insert_text(options[0] + " ")
             readline.redisplay()
             return options[0] + " "
-
+        
         common_prefix = longest_common_prefix(options)
-
         if common_prefix and common_prefix != text:
             last_completion_text = common_prefix
-            sys.stdout.write("\r$ " + common_prefix)  # Properly replace previous text
+            sys.stdout.write("\r$ " + common_prefix)
             sys.stdout.flush()
-            readline.insert_text(common_prefix)  # Update input buffer
+            readline.insert_text(common_prefix)
             readline.redisplay()
             return common_prefix
-
+        
         if tab_press_count == 0:
             tab_press_count += 1
-            sys.stdout.write("\a")  # Ring bell
+            sys.stdout.write("\a")
             sys.stdout.flush()
             return None
         else:
-            sys.stdout.write("\n" + "  ".join(options) + "\n$ " + text)  # Print options and restore prompt
+            sys.stdout.write("\n" + "  ".join(options) + "\n$ " + text)
             sys.stdout.flush()
             tab_press_count = 0
             return None
-
     return None
-
-def execute_command(command):
-    """Execute a command with optional output and error redirection."""
-    parts = shlex.split(command, posix=True)
-    stdout_target = None
-    stderr_target = None
-    stdout_append = False
-    stderr_append = False
-    
-    if '>' in parts or '1>' in parts or '2>' in parts or '>>' in parts or '1>>' in parts or '2>>' in parts:
-        cmd_parts = []
-        i = 0
-        while i < len(parts):
-            if parts[i] in {'>', '1>'} and i + 1 < len(parts):
-                stdout_target = parts[i + 1]
-                i += 2
-            elif parts[i] == '2>' and i + 1 < len(parts):
-                stderr_target = parts[i + 1]
-                i += 2
-            elif parts[i] in {'>>', '1>>'} and i + 1 < len(parts):
-                stdout_target = parts[i + 1]
-                stdout_append = True
-                i += 2
-            elif parts[i] == '2>>' and i + 1 < len(parts):
-                stderr_target = parts[i + 1]
-                stderr_append = True
-                i += 2
-            else:
-                cmd_parts.append(parts[i])
-                i += 1
-        
-        if not cmd_parts:
-            sys.stdout.write("Error: No command specified\n")
-            return
-        
-        stdout_mode = 'a' if stdout_append else 'w'
-        stderr_mode = 'a' if stderr_append else 'w'
-        stdout_file = open(stdout_target, stdout_mode) if stdout_target else None
-        stderr_file = open(stderr_target, stderr_mode) if stderr_target else None
-        
-        try:
-            subprocess.run(cmd_parts, env=os.environ, stdout=stdout_file or sys.stdout, stderr=stderr_file or sys.stderr, check=False)
-        except Exception as e:
-            sys.stdout.write(f"Error: {e}\n")
-        finally:
-            if stdout_file:
-                stdout_file.close()
-            if stderr_file:
-                stderr_file.close()
-    else:
-        subprocess.run(parts, env=os.environ, check=False)
 
 def main():
     global builtin
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
-    path_variable = os.environ.get("PATH", "")
-    path_dirs = path_variable.split(":") if path_variable else []
-    
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
-    
     while True:
         try:
             sys.stdout.write("$ ")
@@ -155,65 +89,23 @@ def main():
             command = input()
         except EOFError:
             break
-        
         if not command:
             continue
         
         var = shlex.split(command, posix=True)
         cmd = var[0]
         args = var[1:]
+        if cmd == "exit":
+            break
         
-        if '>' in args or '1>' in args or '2>' in args or '>>' in args or '1>>' in args or '2>>' in args:
-            execute_command(command)
-            continue
-        
-        match cmd:
-            case "exit":
-                break
-            
-            case "echo":
-                if args:
-                    sys.stdout.write(" ".join(args) + '\n')
-            
-            case 'type':
-                if not args:
-                    continue
-                
-                args = "".join(args)
-                executable_path = find_executable(args, path_dirs)
-                
-                if args in builtin:
-                    sys.stdout.write(f"{args} is a shell builtin\n")
-                elif executable_path:
-                    sys.stdout.write(f"{args} is {executable_path}\n")
-                else:
-                    sys.stdout.write(f"{args}: not found\n")
-            
-            case 'pwd':
-                sys.stdout.write(os.getcwd() + '\n')
-            
-            case 'cd':
-                if not args or "".join(args) == '~':
-                    path = os.path.expanduser('~')
-                else:
-                    path = args[0]
-                
-                try:
-                    os.chdir(path)
-                except FileNotFoundError:
-                    sys.stdout.write(f"cd: {path}: No such file or directory\n")
-                except NotADirectoryError:
-                    sys.stdout.write(f"cd: {path}: Not a directory\n")
-                except PermissionError:
-                    sys.stdout.write(f"cd: {path}: Permission denied\n")
-            
-            case _:
-                executable_path = find_executable(cmd, path_dirs)
-                
-                if executable_path:
-                    execute_command(command)
-                else:
-                    sys.stdout.write(f"{cmd}: command not found\n")
+        if cmd in builtin:
+            sys.stdout.write("Built-in command: " + cmd + "\n")
+        else:
+            executable_path = find_executable(cmd, os.environ.get("PATH", "").split(":"))
+            if executable_path:
+                subprocess.run([executable_path] + args)
+            else:
+                sys.stdout.write(f"{cmd}: command not found\n")
 
 if __name__ == "__main__":
     main()
