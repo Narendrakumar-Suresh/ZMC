@@ -12,9 +12,23 @@ def find_executable(command, path_dirs):
             return full_path
     return None
 
-def completer(text, path_dirs,state):
+def get_executables(path_dirs):
+    """Retrieve all executable files from directories in PATH."""
+    executables = set()
+    for directory in path_dirs:
+        if os.path.isdir(directory):  # Ensure it's a valid directory
+            try:
+                for file in os.listdir(directory):
+                    full_path = os.path.join(directory, file)
+                    if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                        executables.add(file)  # Add only the filename
+            except PermissionError:
+                continue  # Ignore directories we can't access
+    return executables
+
+def completer(text, state):
     """Autocomplete function for shell commands and filenames."""
-    options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text) or cmd in path_dirs]
+    options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text)]
     if state < len(options):
         return options[state] + ' ' if len(options) == 1 else options[state]
     return None
