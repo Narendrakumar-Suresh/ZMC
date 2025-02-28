@@ -4,7 +4,7 @@ import subprocess
 import shlex
 import readline
 
-# Globals for completion state.
+# Global state for completion.
 previous_completion_text = None
 tab_press_count = 0
 
@@ -34,7 +34,7 @@ def completer(text, state):
     """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
 
-    # Dynamically obtain executables from PATH.
+    # Get executables from PATH
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
@@ -42,38 +42,38 @@ def completer(text, state):
     # Combine built-in commands and executables.
     all_commands = builtin + list(executables)
 
-    # Filter for those starting with the current text.
+    # Get possible matches that start with the given text.
     options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
 
-    # Reset our tab count if the text has changed.
+    # Reset tab_press_count if text has changed.
     if text != previous_completion_text:
         previous_completion_text = text
         tab_press_count = 0
 
-    # If there's exactly one match, complete it immediately with a trailing space.
+    # If there's exactly one match, complete it immediately (only on state==0).
     if len(options) == 1:
-        return options[0] + ' '
+        if state == 0:
+            return options[0] + ' '
+        else:
+            return None
 
-    # If there are multiple matches:
+    # Handle multiple matches.
     if len(options) > 1:
         if state == 0:
             if tab_press_count == 0:
-                # On the first TAB press, ring the bell.
                 tab_press_count += 1
-                sys.stdout.write("\a")
+                sys.stdout.write("\a")  # Ring the bell on first TAB press.
                 sys.stdout.flush()
                 return None
             elif tab_press_count == 1:
-                # On the second TAB press, display all matches (separated by 2 spaces)
                 tab_press_count += 1
+                # Print all matches separated by 2 spaces.
                 sys.stdout.write("\n" + "  ".join(options) + "\n")
                 sys.stdout.write("$ " + text)
                 sys.stdout.flush()
                 return None
-        # If the completer is iterated, return each match in turn.
         if state < len(options):
             return options[state] + ' '
-
     return None
 
 def execute_command(command):
