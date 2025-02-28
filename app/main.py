@@ -1,9 +1,12 @@
-#Deepseek
+#GPT
 import sys
 import os
 import subprocess
 import shlex
 import readline
+
+previous_completion_text = None
+tab_press_count = 0
 
 def find_executable(command, path_dirs):
     """Search for an executable in the PATH directories."""
@@ -27,11 +30,8 @@ def get_executables(path_dirs):
                 continue
     return executables
 
-previous_completion_text = None
-tab_press_count = 0
-
 def completer(text, state):
-    """Autocomplete function for shell commands."""
+    """Autocomplete function for shell commands, filenames, and executables."""
     global previous_completion_text, tab_press_count
 
     # Get executables from PATH
@@ -45,37 +45,31 @@ def completer(text, state):
     # Get possible matches that start with the text
     options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
 
-    # Reset tab_press_count if the text has changed
+    # Reset tab_press_count if text changed
     if text != previous_completion_text:
         previous_completion_text = text
         tab_press_count = 0
 
-    # Handle single match
+    # If there's exactly one match, return it immediately with a space.
     if len(options) == 1:
-        if state == 0:
-            return options[0] + ' '
-        else:
-            return None
+        return options[0] + ' '
 
-    # Handle multiple matches
+    # If there are multiple matches, use bell on first TAB and list on second.
     if len(options) > 1:
         if state == 0:
-            tab_press_count += 1
-
-            # First TAB press: Ring the bell
-            if tab_press_count == 1:
-                sys.stdout.write("\a")  # Ring the bell
+            if tab_press_count == 0:
+                tab_press_count += 1
+                sys.stdout.write("\a")
                 sys.stdout.flush()
                 return None
-            # Second TAB press: Show all matches
-            elif tab_press_count == 2:
-                sys.stdout.write("\n" + "  ".join(options) + "\n")  # List matches with 2 spaces
-                sys.stdout.write("$ " + text)  # Reprint prompt with current text
+            elif tab_press_count == 1:
+                tab_press_count += 1
+                sys.stdout.write("\n" + "  ".join(options) + "\n")
+                sys.stdout.write("$ " + text)
                 sys.stdout.flush()
                 return None
-
-        # Return None for all states after handling first and second TAB presses
-        return None
+        if state < len(options):
+            return options[state] + ' '
 
     return None
 
@@ -112,16 +106,16 @@ def main():
             case "exit":
                 break
             case "echo":
-                sys.stdout.write(" ".join(args) + '\n')
-            case 'pwd':
-                sys.stdout.write(os.getcwd() + '\n')
-            case 'cd':
-                path = args[0] if args else os.path.expanduser('~')
+                sys.stdout.write(" ".join(args) + "\n")
+            case "pwd":
+                sys.stdout.write(os.getcwd() + "\n")
+            case "cd":
+                path = args[0] if args else os.path.expanduser("~")
                 try:
                     os.chdir(path)
                 except Exception as e:
                     sys.stdout.write(f"cd: {path}: {e}\n")
-            case _: 
+            case _:
                 executable_path = find_executable(cmd, os.environ.get("PATH", "").split(":"))
                 if executable_path:
                     execute_command(command)
