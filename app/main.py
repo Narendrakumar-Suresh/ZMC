@@ -27,11 +27,10 @@ def get_executables(path_dirs):
     return executables
 
 previous_completion_text = None
-tab_press_count = 0
 
 def completer(text, state):
     """Autocomplete function for shell commands, filenames, and executables."""
-    global previous_completion_text, tab_press_count
+    global previous_completion_text
 
     # Get executables from PATH
     path_variable = os.environ.get("PATH", "")
@@ -44,32 +43,13 @@ def completer(text, state):
     # Get possible matches that start with the text
     options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
 
-    # Reset tab_press_count if text has changed
+    # Reset state if text has changed
     if text != previous_completion_text:
         previous_completion_text = text
-        tab_press_count = 0
 
-    # If only one match, autocomplete immediately with a space
-    if len(options) == 1:
-        return options[0] + ' '
-
-    # If multiple matches exist
-    if len(options) > 1:
-        if tab_press_count == 0:
-            tab_press_count += 1
-            sys.stdout.write("\a")  # Bell sound
-            sys.stdout.flush()
-            return None
-        elif tab_press_count == 1:
-            tab_press_count += 1
-            sys.stdout.write("\n" + "  ".join(options) + "\n")
-            sys.stdout.write("$ " + text)  # Reprint prompt with typed text
-            sys.stdout.flush()
-            return None
-
-        # Return the first match directly
-        if state < len(options):
-            return options[state] + ' '
+    # If at least one match, return the first one
+    if options:
+        return options[state % len(options)] + ' '
 
     return None
 
