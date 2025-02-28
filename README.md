@@ -123,7 +123,7 @@ ZMC is actively being developed! Here are some of the upcoming features:
 
 ## License
 
-This project is licensed under the MIT License - see the [License](https://github.com/Narendrakumar-Suresh/ZMC?tab=MIT-1-ov-file) file for details.
+This project is licensed under the MIT License - see the [License](https://github.com/Narendrakumar-Suresh/ZMC/blob/main/LICENSE) file for details.
 
 ## Contact
 
