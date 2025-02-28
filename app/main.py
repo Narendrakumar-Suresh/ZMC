@@ -34,19 +34,23 @@ def completer(text, state):
     global previous_completion_text, tab_press_count
 
     # Get executables from PATH
-    path_dirs = os.environ.get("PATH", "").split(":")
+    path_variable = os.environ.get("PATH", "")
+    path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
 
-    # Get possible matches
-    options = sorted(cmd for cmd in executables if cmd.startswith(text))
+    # Include built-in commands
+    all_commands = builtin + list(executables)
 
-    # Reset tab_press_count if the input text has changed
+    # Get possible matches
+    options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
+
+    # Reset tab_press_count if the text has changed
     if text != previous_completion_text:
         previous_completion_text = text
         tab_press_count = 0
 
-    # Handle single match
-    if len(options) == 1 and state == 0:
+    # Handle single match (auto-complete immediately)
+    if len(options) == 1:
         return options[0] + ' '  # Auto-complete single match
 
     # Handle multiple matches
@@ -59,6 +63,7 @@ def completer(text, state):
                 sys.stdout.write("\a")  # Ring the bell
                 sys.stdout.flush()
                 return None
+
             # Second TAB press: Show all matches
             elif tab_press_count == 2:
                 sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
@@ -72,6 +77,7 @@ def completer(text, state):
 
     return None
 
+
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
     parts = shlex.split(command, posix=True)
@@ -83,7 +89,7 @@ def execute_command(command):
 def main():
     global builtin
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
-    
+
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     
