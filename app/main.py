@@ -43,12 +43,13 @@ def display_matches(substitution, matches, longest_match_length):
 def completer(text, state):
     # List of all possible commands (built-ins and executables)
     all_commands = builtin + list(executables)
-    # Find commands that start with the input text
     matches = [cmd for cmd in all_commands if cmd.startswith(text)]
     matches = sorted(set(matches))  # Remove duplicates and sort
-    # Return the match corresponding to the current state, or None if out of range
     if state < len(matches):
-        return matches[state]
+        if len(matches) == 1:
+            return matches[state] + " "  # Add space for unique match
+        else:
+            return matches[state]  # No space for multiple matches
     return None
 
 def parse_command(command):
