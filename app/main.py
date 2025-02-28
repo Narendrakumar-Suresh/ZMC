@@ -61,7 +61,7 @@ def completer(text, state):
                 sys.stdout.write("\a")  # Ring the bell
                 sys.stdout.flush()
                 return None
-            # Second TAB press: Show all matches
+            
             elif tab_press_count == 2:
                 sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
                 sys.stdout.write("$ " + text)  # Reprint prompt with typed text
