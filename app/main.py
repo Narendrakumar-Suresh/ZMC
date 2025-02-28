@@ -48,9 +48,9 @@ def completer(text, state):
         previous_completion_text = text
         tab_press_count = 0
 
-    # If there's only one match, auto-complete it with a space
+    # If there's only one match, auto-complete it fully with a space
     if len(options) == 1:
-        return options[0] + ' '
+        return options[0] + ' '  # Ensure full completion
 
     # Handle multiple matches
     if len(options) > 1:
@@ -63,7 +63,7 @@ def completer(text, state):
                 sys.stdout.flush()
                 return None
             
-            # Second TAB press: Show all matches with consistent spacing
+            # Second TAB press: Show all matches with correct spacing
             elif tab_press_count == 2:
                 sys.stdout.write("\n" + "  ".join(options) + "\n")  # Ensuring correct spacing
                 sys.stdout.write("$ " + text)  # Reprint prompt with typed text
