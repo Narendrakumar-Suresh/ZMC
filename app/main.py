@@ -50,23 +50,84 @@ def completer(text, state):
             return matches[state]  # No space for multiple matches
     return None
 
-def execute_command(command):
-    """Execute a command with optional output and error redirection."""
+def parse_command(command):
+    """Parse command to separate arguments and redirection."""
     parts = shlex.split(command, posix=True)
+    cmd_args = []
+    stdout_file = None
+    stderr_file = None
+    stdout_append = False
+    stderr_append = False
+    
+    i = 0
+    while i < len(parts):
+        if parts[i] == '>':
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                stdout_append = False
+                i += 2
+            else:
+                raise ValueError("Missing file after '>'")
+        elif parts[i] == '>>':
+            if i + 1 < len(parts):
+                stdout_file = parts[i + 1]
+                stdout_append = True
+                i += 2
+            else:
+                raise ValueError("Missing file after '>>'")
+        elif parts[i] == '2>':
+            if i + 1 < len(parts):
+                stderr_file = parts[i + 1]
+                stderr_append = False
+                i += 2
+            else:
+                raise ValueError("Missing file after '2>'")
+        elif parts[i] == '2>>':
+            if i + 1 < len(parts):
+                stderr_file = parts[i + 1]
+                stderr_append = True
+                i += 2
+            else:
+                raise ValueError("Missing file after '2>>'")
+        else:
+            cmd_args.append(parts[i])
+            i += 1
+    
+    return cmd_args, stdout_file, stderr_file, stdout_append, stderr_append
+
+def execute_command(cmd_args, stdout_file=None, stderr_file=None, stdout_append=False, stderr_append=False):
+    """Execute a command with optional output and error redirection."""
+    stdout = subprocess.PIPE if stdout_file is None else open(stdout_file, 'a' if stdout_append else 'w')
+    stderr = subprocess.PIPE if stderr_file is None else open(stderr_file, 'a' if stderr_append else 'w')
+    
     try:
-        subprocess.run(parts, env=os.environ, check=False)
+        process = subprocess.run(
+            cmd_args,
+            env=os.environ,
+            stdout=stdout,
+            stderr=stderr,
+            check=False
+        )
+        # If stdout/stderr are pipes, write them to the terminal (default behavior)
+        if stdout == subprocess.PIPE and process.stdout:
+            sys.stdout.write(process.stdout.decode())
+        if stderr == subprocess.PIPE and process.stderr:
+            sys.stderr.write(process.stderr.decode())
     except Exception as e:
         sys.stdout.write(f"Error: {e}\n")
+    finally:
+        if stdout_file and stdout != subprocess.PIPE:
+            stdout.close()
+        if stderr_file and stderr != subprocess.PIPE:
+            stderr.close()
 
 def main():
     global builtin, executables
     builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
-    # Precompute executables once
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
     
-    # Set up readline for autocompletion
     readline.set_completer(completer)
     readline.parse_and_bind("tab: complete")
     readline.set_completion_display_matches_hook(display_matches)
@@ -82,29 +143,55 @@ def main():
         if not command:
             continue
         
-        var = shlex.split(command, posix=True)
-        cmd = var[0]
-        args = var[1:]
+        # Parse command for redirection
+        try:
+            cmd_args, stdout_file, stderr_file, stdout_append, stderr_append = parse_command(command)
+            if not cmd_args:
+                continue
+            cmd = cmd_args[0]
+            args = cmd_args[1:]
+        except ValueError as e:
+            sys.stdout.write(f"Error: {e}\n")
+            continue
         
         match cmd:
             case "exit":
                 break
             case "echo":
-                sys.stdout.write(" ".join(args) + "\n")
+                output = " ".join(args) + "\n"
+                if stdout_file:
+                    with open(stdout_file, 'a' if stdout_append else 'w') as f:
+                        f.write(output)
+                else:
+                    sys.stdout.write(output)
             case "pwd":
-                sys.stdout.write(os.getcwd() + "\n")
+                output = os.getcwd() + "\n"
+                if stdout_file:
+                    with open(stdout_file, 'a' if stdout_append else 'w') as f:
+                        f.write(output)
+                else:
+                    sys.stdout.write(output)
             case "cd":
                 path = args[0] if args else os.path.expanduser("~")
                 try:
                     os.chdir(path)
                 except Exception as e:
-                    sys.stdout.write(f"cd: {path}: {e}\n")
+                    if stderr_file:
+                        with open(stderr_file, 'a' if stderr_append else 'w') as f:
+                            f.write(f"cd: {path}: {e}\n")
+                    else:
+                        sys.stdout.write(f"cd: {path}: {e}\n")
             case _:
                 executable_path = find_executable(cmd, path_dirs)
                 if executable_path:
-                    execute_command(command)
+                    execute_command(cmd_args, stdout_file, stderr_file, stdout_append, stderr_append)
                 else:
-                    sys.stdout.write(f"{cmd}: command not found\n")
+                    error_msg = f"{cmd}: command not found\n"
+                    if stderr_file:
+                        with open(stderr_file, 'a' if stderr_append else 'w') as f:
+                            f.write(error_msg)
+                    else:
+                        sys.stdout.write(error_msg)
 
 if __name__ == "__main__":
     main()
