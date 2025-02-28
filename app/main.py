@@ -26,18 +26,6 @@ def get_executables(path_dirs):
                 continue
     return executables
 
-def longest_common_prefix(strings):
-    """Finds the longest common prefix of a list of strings."""
-    if not strings:
-        return ""
-    prefix = strings[0]
-    for string in strings[1:]:
-        while not string.startswith(prefix):
-            prefix = prefix[:-1]
-            if not prefix:
-                return ""
-    return prefix
-
 previous_completion_text = None
 tab_press_count = 0
 
@@ -50,42 +38,41 @@ def completer(text, state):
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
 
-    # Include built-in commands in autocomplete
+    # Include built-in commands
     all_commands = builtin + list(executables)
 
     # Get possible matches
     options = sorted(cmd for cmd in all_commands if cmd.startswith(text))
 
-    # Reset tab_press_count if the text has changed
+    # Reset tab_press_count if text has changed
     if text != previous_completion_text:
         previous_completion_text = text
         tab_press_count = 0
 
-    # Handle longest common prefix completion
-    if options:
-        common_prefix = longest_common_prefix(options)
+    # ✅ If only one match, autocomplete immediately with a space
+    if len(options) == 1:
+        return options[0] + ' '
 
-        # If there's only one match, complete it and add a space
-        if len(options) == 1:
-            return options[0] + ' '  # ✅ Fix: Ensure it completes "exit" to "exit "
-
-        # If the common prefix is longer than input, complete it
-        if common_prefix != text:
-            return common_prefix  # ✅ Partial completion if multiple matches exist
-
-        # First TAB press: Ring the bell
-        if tab_press_count == 0:
-            sys.stdout.write("\a")  # Ring the bell
-            sys.stdout.flush()
+    # ✅ If multiple matches exist
+    if len(options) > 1:
+        if state == 0:
             tab_press_count += 1
-            return None
 
-        # Second TAB press: Show all matches
-        if tab_press_count == 1:
-            sys.stdout.write("\n" + "  ".join(options) + "\n")  # Print all matches
-            sys.stdout.write("$ " + text)  # Reprint prompt with typed text
-            sys.stdout.flush()
-            return None
+            # First TAB press: Ring the bell
+            if tab_press_count == 1:
+                sys.stdout.write("\a")  # Bell sound
+                sys.stdout.flush()
+                return None
+            # Second TAB press: Show all matches
+            elif tab_press_count == 2:
+                sys.stdout.write("\n" + "  ".join(options) + "\n")
+                sys.stdout.write("$ " + text)  # Reprint prompt with typed text
+                sys.stdout.flush()
+                return None
+
+        # Cycle through possible options
+        if state < len(options):
+            return options[state] + ' '
 
     return None
 
