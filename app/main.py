@@ -12,9 +12,9 @@ def find_executable(command, path_dirs):
             return full_path
     return None
 
-def completer(text, state):
+def completer(text, path_dirs,state):
     """Autocomplete function for shell commands and filenames."""
-    options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text)]
+    options = [cmd for cmd in builtin + os.listdir('.') if cmd.startswith(text) or cmd in path_dirs]
     if state < len(options):
         return options[state] + ' ' if len(options) == 1 else options[state]
     return None
