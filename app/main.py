@@ -26,44 +26,50 @@ def get_executables(path_dirs):
                 continue
     return executables
 
-def longest_common_prefix(strings):
-    """Find the longest common prefix in a list of strings."""
-    if not strings:
-        return ""
-    prefix = strings[0]
-    for s in strings[1:]:
-        while not s.startswith(prefix):
-            prefix = prefix[:-1]
-            if not prefix:
-                return ""
-    return prefix
+completion_attempt = 0
 
 def completer(text, state):
-    """Autocomplete function for shell commands and executables."""
+    """Autocomplete function for shell commands."""
+    global completion_attempt
     path_variable = os.environ.get("PATH", "")
     path_dirs = path_variable.split(":") if path_variable else []
     executables = get_executables(path_dirs)
-    
-    options = sorted(cmd for cmd in executables if cmd.startswith(text))
+    options = sorted(cmd for cmd in builtin + list(executables) if cmd.startswith(text))
     
     if state == 0:
-        completer.match_count = len(options)
-        if completer.match_count > 1:
-            sys.stdout.write('\a')  # Ring the bell on first TAB
-            sys.stdout.flush()
+        completion_attempt += 1
+    
+    if len(options) > 1 and completion_attempt == 1:
+        sys.stdout.write('\a')  # Ring bell
+        sys.stdout.flush()
+        return None
+    
+    if len(options) > 1 and completion_attempt >= 2:
+        print("\n" + "  ".join(options))
+        sys.stdout.write("$ ")
+        sys.stdout.flush()
+        completion_attempt = 0
+        return None
     
     if state < len(options):
+        completion_attempt = 0  # Reset counter on successful completion
         return options[state] + ' '
-    
-    if state == 1 and completer.match_count > 1:
-        sys.stdout.write("\n" + "  ".join(options) + "\n$ ")
-        sys.stdout.flush()
     return None
 
-readline.set_completer(completer)
-readline.parse_and_bind("tab: complete")
+def execute_command(command):
+    """Execute a command with optional output and error redirection."""
+    parts = shlex.split(command, posix=True)
+    try:
+        subprocess.run(parts, env=os.environ, check=False)
+    except Exception as e:
+        sys.stdout.write(f"Error: {e}\n")
 
 def main():
+    global builtin
+    builtin = ['echo', 'exit', 'type', 'pwd', 'cd']
+    readline.set_completer(completer)
+    readline.parse_and_bind("tab: complete")
+    
     while True:
         try:
             sys.stdout.write("$ ")
@@ -75,16 +81,29 @@ def main():
         if not command:
             continue
         
-        parts = shlex.split(command, posix=True)
-        cmd = parts[0]
-        args = parts[1:]
+        var = shlex.split(command, posix=True)
+        cmd = var[0]
+        args = var[1:]
         
-        executable_path = find_executable(cmd, os.environ.get("PATH", "").split(":"))
-        
-        if executable_path:
-            subprocess.run([executable_path] + args, env=os.environ, check=False)
-        else:
-            sys.stdout.write(f"{cmd}: command not found\n")
+        match cmd:
+            case "exit":
+                break
+            case "echo":
+                sys.stdout.write(" ".join(args) + '\n')
+            case 'pwd':
+                sys.stdout.write(os.getcwd() + '\n')
+            case 'cd':
+                path = args[0] if args else os.path.expanduser('~')
+                try:
+                    os.chdir(path)
+                except Exception as e:
+                    sys.stdout.write(f"cd: {path}: {e}\n")
+            case _: 
+                executable_path = find_executable(cmd, os.environ.get("PATH", "").split(":"))
+                if executable_path:
+                    execute_command(command)
+                else:
+                    sys.stdout.write(f"{cmd}: command not found\n")
 
 if __name__ == "__main__":
     main()
