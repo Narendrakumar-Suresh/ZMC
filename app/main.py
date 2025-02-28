@@ -29,7 +29,7 @@ def get_executables(path_dirs):
 previous_completion_text = None
 
 def completer(text, state):
-    """Autocomplete function for shell commands, filenames, and executables."""
+    """Autocomplete function for shell commands."""
     global previous_completion_text, tab_press_count
 
     # Get executables from PATH
@@ -48,34 +48,25 @@ def completer(text, state):
         previous_completion_text = text
         tab_press_count = 0
 
-    # If there's only one match, auto-complete it fully with a space
+    # If there's only one match, auto-complete it with a space
     if len(options) == 1:
-        return options[0] + ' '  # Ensure full completion
+        return options[0] + ' '
 
     # Handle multiple matches
     if len(options) > 1:
         if state == 0:
-            tab_press_count += 1
-
-            # First TAB press: Ring the bell
-            if tab_press_count == 1:
-                sys.stdout.write("\a")  # Ring the bell
-                sys.stdout.flush()
-                return None
-            
-            # Second TAB press: Show all matches with correct spacing
-            elif tab_press_count == 2:
-                sys.stdout.write("\n" + "  ".join(options) + "\n")  # Ensuring correct spacing
-                sys.stdout.write("$ " + text)  # Reprint prompt with typed text
-                sys.stdout.flush()
-                return None
-
-        # Return the current match if there are multiple options
-        if state < len(options):
-            return options[state] + ' '
+            if tab_press_count < 2:
+                tab_press_count += 1
+                if tab_press_count == 1:
+                    sys.stdout.write("\a")  # Ring the bell
+                    sys.stdout.flush()
+                elif tab_press_count == 2:
+                    sys.stdout.write("\n" + "  ".join(options) + "\n")  # List matches with 2 spaces
+                    sys.stdout.write("$ " + text)  # Reprint prompt with current text
+                    sys.stdout.flush()
+        return None
 
     return None
-
 
 def execute_command(command):
     """Execute a command with optional output and error redirection."""
