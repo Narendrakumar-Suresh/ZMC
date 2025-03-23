@@ -1,6 +1,6 @@
 # ZMC-Zen Mode CLI
-> [!NOTE]  
-> This is based code-crafters shell. soon more features will be added
+> [!WARNING]  
+> This is based code-crafters shell. soon more features will be added and still under active development.
 
 ## Overview
 
